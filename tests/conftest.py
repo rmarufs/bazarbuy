@@ -6,17 +6,29 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
-from app.core.database import get_db
+from app.core.database import Base, get_db
 from app.main import app
 
 
 @pytest_asyncio.fixture
 async def db_session() -> AsyncIterator[AsyncSession]:
-    """Async session bound to the test database."""
+    """Async session bound to the test database.
+
+    Tables are created before each test and dropped after it,
+    so every test starts with an empty schema.
+    """
+    assert settings.TEST_DATABASE_URL != settings.DATABASE_URL, (
+        "TEST_DATABASE_URL must differ from DATABASE_URL"
+    )
     engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
+        await connection.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as session:
         yield session
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.drop_all)
     await engine.dispose()
 
 

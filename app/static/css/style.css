@@ -1,0 +1,123 @@
+/* Mobile-first styles. Desktop tweaks at the bottom. */
+:root {
+  --bg: #f5f6f8;
+  --surface: #fff;
+  --text: #1c1f24;
+  --muted: #6b7280;
+  --border: #d9dde3;
+  --primary: #1a7f5a;
+  --primary-dark: #146548;
+  --danger-bg: #fdecec;
+  --danger: #b42318;
+  --success-bg: #e7f6ee;
+  --success: #146548;
+  --radius: 10px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1 { margin: 0 0 16px; font-size: 1.4rem; }
+
+.container { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+/* Admin header: brand and logout on the first row, nav below on phones. */
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-brand { font-weight: 700; }
+
+.admin-nav {
+  display: flex;
+  order: 3;
+  width: 100%;
+  gap: 4px;
+}
+
+.admin-nav a {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.admin-nav a:hover { background: var(--border); }
+
+.card {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.card-narrow { margin-top: 24px; }
+
+.form { display: flex; flex-direction: column; gap: 8px; }
+
+.form label { font-weight: 600; }
+
+input[type="text"],
+input[type="password"],
+input[type="tel"] {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+input:focus-visible,
+.btn:focus-visible,
+.admin-nav a:focus-visible {
+  outline: 3px solid rgba(26, 127, 90, 0.4);
+  outline-offset: 1px;
+}
+
+.hint { margin: 0; font-size: 0.9rem; color: var(--muted); }
+
+.btn {
+  min-height: 48px;
+  padding: 10px 18px;
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.btn-primary { margin-top: 8px; color: #fff; background: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { min-height: 40px; color: var(--text); background: var(--bg); border: 1px solid var(--border); }
+
+.alert { margin: 0 0 12px; padding: 10px 12px; border-radius: var(--radius); }
+.alert-error { color: var(--danger); background: var(--danger-bg); }
+.alert-success { color: var(--success); background: var(--success-bg); }
+
+@media (min-width: 640px) {
+  .admin-header { flex-wrap: nowrap; padding: 10px 24px; }
+  .admin-nav { order: 0; width: auto; }
+  .admin-nav a { flex: none; padding: 8px 14px; }
+  .container { padding: 24px; }
+  .card { padding: 24px; }
+  .card-narrow { max-width: 420px; margin: 48px auto 0; }
+}

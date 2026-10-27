@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Настройки</h1>
+  {% if saved %}<p class="alert alert-success" role="status">Сохранено</p>{% endif %}
+  {% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/admin/settings" class="form">
+    <label for="whatsapp_number">Номер WhatsApp</label>
+    <input id="whatsapp_number" name="whatsapp_number" type="tel"
+           value="{{ whatsapp_number }}" placeholder="+992901234567"
+           autocomplete="off" inputmode="tel">
+    <p class="hint">Заказы клиентов приходят на этот номер.</p>
+    <button type="submit" class="btn btn-primary">Сохранить</button>
+  </form>
+</section>
+{% endblock %}

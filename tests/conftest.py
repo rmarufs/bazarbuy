@@ -8,6 +8,7 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+from app.services import auth_service
 
 
 @pytest_asyncio.fixture
@@ -45,3 +46,15 @@ async def client(db_session: AsyncSession) -> AsyncIterator[AsyncClient]:
     ) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def admin_client(
+    client: AsyncClient, db_session: AsyncSession
+) -> AsyncIterator[AsyncClient]:
+    """HTTP client already signed in as an admin."""
+    await auth_service.upsert_admin(db_session, "owner", "secret-pass")
+    await client.post(
+        "/admin/login", data={"username": "owner", "password": "secret-pass"}
+    )
+    yield client

@@ -1,4 +1,6 @@
 {% extends "admin/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "settings" %}
 {% block title %}Настройки{% endblock %}
 {% block content %}
 <section class="card">
@@ -7,11 +9,16 @@
   {% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
   <form method="post" action="/admin/settings" class="form">
     <label for="whatsapp_number">Номер WhatsApp</label>
-    <input id="whatsapp_number" name="whatsapp_number" type="tel"
-           value="{{ whatsapp_number }}" placeholder="+992901234567"
-           autocomplete="off" inputmode="tel">
+    <div class="input-icon">
+      {{ icon("phone", 18) }}
+      <input id="whatsapp_number" name="whatsapp_number" type="tel"
+             value="{{ whatsapp_number }}" placeholder="+992901234567"
+             autocomplete="off" inputmode="tel">
+    </div>
     <p class="hint">Заказы клиентов приходят на этот номер.</p>
-    <button type="submit" class="btn btn-primary">Сохранить</button>
+    <button type="submit" class="btn btn-primary btn-block">
+      {{ icon("check", 18) }}<span>Сохранить</span>
+    </button>
   </form>
 </section>
 {% endblock %}

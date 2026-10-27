@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "categories" %}
+{% block title %}Категории{% endblock %}
+{% block content %}
+<h1 class="page-title">Категории</h1>
+
+{% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+
+<section class="card">
+  <h2>Добавить категорию</h2>
+  <form method="post" action="/admin/categories" class="inline-form">
+    <label class="visually-hidden" for="new-category">Название категории</label>
+    <input id="new-category" name="name" type="text" value="{{ new_name }}"
+           placeholder="Название категории" maxlength="100" autocomplete="off" required>
+    <button type="submit" class="btn btn-primary">
+      {{ icon("plus", 18) }}<span>Добавить</span>
+    </button>
+  </form>
+</section>
+
+<section class="list" aria-label="Список категорий">
+  {% for category in categories %}
+  {% set count = category.products_count %}
+  <article class="card list-item">
+    <div class="list-item-head">
+      <span class="list-item-title">{{ category.name }}</span>
+      <span class="badge">
+        {{ count }} {{ "товар" if count % 10 == 1 and count % 100 != 11
+          else ("товара" if count % 10 in [2, 3, 4] and count % 100 not in [12, 13, 14]
+          else "товаров") }}
+      </span>
+    </div>
+    <div class="list-item-actions">
+      <form method="post" action="/admin/categories/{{ category.id }}/rename" class="inline-form">
+        <label class="visually-hidden" for="rename-{{ category.id }}">Новое название</label>
+        <input id="rename-{{ category.id }}" name="name" type="text"
+               value="{{ category.name }}" maxlength="100" autocomplete="off" required>
+        <button type="submit" class="btn btn-soft btn-icon" aria-label="Сохранить название" title="Сохранить">
+          {{ icon("check") }}
+        </button>
+      </form>
+      <form method="post" action="/admin/categories/{{ category.id }}/delete"
+            onsubmit="return confirm('Удалить категорию?');">
+        <button type="submit" class="btn btn-danger btn-icon" aria-label="Удалить категорию" title="Удалить">
+          {{ icon("trash") }}
+        </button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <p class="empty">Категорий пока нет. Добавьте первую.</p>
+  {% endfor %}
+</section>
+{% endblock %}

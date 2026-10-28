@@ -15,24 +15,21 @@
       {{ icon("cart", 24) }}
       <span class="cart-badge" data-cart-count hidden>0</span>
     </a>
-    <nav class="site-nav" aria-label="Разделы сайта">
-      <a href="/"{% if active_nav == "catalog" %} class="active" aria-current="page"{% endif %}>
-        {{ icon("grid") }}<span>Каталог</span>
-      </a>
-      <a href="/about"{% if active_nav == "about" %} class="active" aria-current="page"{% endif %}>
-        {{ icon("info") }}<span>О нас</span>
-      </a>
-      <a href="/contacts"{% if active_nav == "contacts" %} class="active" aria-current="page"{% endif %}>
-        {{ icon("phone") }}<span>Контакты</span>
-      </a>
-    </nav>
   </header>
+  <nav class="site-nav" aria-label="Разделы сайта">
+    <a href="/contacts"{% if active_nav == "contacts" %} class="active" aria-current="page"{% endif %}>
+      {{ icon("phone") }}<span>Контакты</span>
+    </a>
+    <a href="/about"{% if active_nav == "about" %} class="active" aria-current="page"{% endif %}>
+      {{ icon("info") }}<span>О нас</span>
+    </a>
+    <a href="/"{% if active_nav == "catalog" %} class="active" aria-current="page"{% endif %}>
+      {{ icon("grid") }}<span>Каталог</span>
+    </a>
+  </nav>
   <main class="container container-wide">
     {% block content %}{% endblock %}
   </main>
-  <footer class="site-footer">
-    <p>Bazarbuy.tj — все товары под предзаказ. Оплата на сайте не нужна.</p>
-  </footer>
   <script src="/static/js/cart.js" defer></script>
   {% block scripts %}{% endblock %}
 </body>

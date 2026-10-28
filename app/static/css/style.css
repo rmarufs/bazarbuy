@@ -69,15 +69,25 @@ h2 { margin: 0 0 12px; font-size: 1.05rem; }
 .logout-form { margin: 0; }
 
 .site-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 30;
   display: flex;
-  order: 3;
+  justify-content: center;
   width: 100%;
   gap: 4px;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .site-nav a {
   display: flex;
   flex: 1;
+  max-width: 200px;
   flex-direction: column;
   align-items: center;
   gap: 2px;
@@ -91,6 +101,7 @@ h2 { margin: 0 0 12px; font-size: 1.05rem; }
 
 .site-nav a:hover { background: var(--bg); color: var(--text); }
 .site-nav a.active { background: var(--primary-light); color: var(--primary-hover); }
+body:has(.site-nav) { padding-bottom: 76px; }
 
 /* Cards */
 .card {
@@ -411,9 +422,6 @@ body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: non
 }
 .cart-badge[hidden] { display: none; }
 
-.site-footer { padding: 24px 16px 32px; text-align: center; font-size: 0.85rem; color: var(--muted); }
-.site-footer p { margin: 0; }
-
 .search-form { display: flex; gap: 8px; margin-bottom: 12px; }
 .search-form input { flex: 1; min-width: 0; }
 
@@ -669,9 +677,9 @@ body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: non
 
   .site-header { flex-wrap: nowrap; padding: 10px 24px; }
   .site-header .brand { order: 0; }
-  .site-nav { order: 1; width: auto; margin-right: auto; margin-left: 16px; }
+  .site-header .site-nav { order: 1; width: auto; margin-right: auto; margin-left: 16px; }
   .logout-form { order: 2; }
-  .site-nav a { flex: none; flex-direction: row; gap: 8px; padding: 8px 14px; font-size: 0.95rem; }
+  .site-header .site-nav a { flex: none; flex-direction: row; gap: 8px; padding: 8px 14px; font-size: 0.95rem; }
   .container { padding: 24px; }
   .card { padding: 20px; }
   .card-narrow { max-width: 420px; margin: 48px auto 0; }

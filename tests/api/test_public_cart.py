@@ -51,7 +51,7 @@ async def test_cart_page_renders_with_whatsapp_number(
     assert 'data-whatsapp-number="+992900112233"' in page
     assert 'data-whatsapp-url="https://wa.me/992900112233"' in page
     assert 'id="whatsapp-order-btn"' in page
-    assert "Оформить предзаказ в WhatsApp" in page
+    assert "Заказать в WhatsApp" in page
     assert "Номер WhatsApp для заказов временно не указан" not in page
     assert "/static/js/cart.js" in page
     assert (await client.get("/static/js/cart.js")).status_code == 200

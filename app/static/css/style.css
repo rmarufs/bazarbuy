@@ -188,6 +188,7 @@ input[type="file"]:focus-visible { outline: none; box-shadow: var(--focus-ring);
   font-weight: 600;
   border: 1px solid transparent;
   border-radius: 10px;
+  text-decoration: none;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s, border-color 0.15s;
 }

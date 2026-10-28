@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "products" %}
+{% set action = "/admin/products/" ~ product.id ~ "/edit" if product else "/admin/products/new" %}
+{% set current_count = product.images | length if product else 0 %}
+{% block title %}{{ "Изменить товар" if product else "Новый товар" }}{% endblock %}
+{% block content %}
+<a class="back-link" href="/admin/products">
+  {{ icon("arrow-left", 18) }}<span>К списку товаров</span>
+</a>
+<h1>{{ "Изменить товар" if product else "Новый товар" }}</h1>
+
+{% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+
+{% if not categories %}
+<section class="card">
+  <p>Чтобы добавить товар, сначала создайте хотя бы одну категорию.</p>
+  <a class="btn btn-primary" href="/admin/categories">
+    {{ icon("tag", 18) }}<span>Создать категорию</span>
+  </a>
+</section>
+{% else %}
+<form class="card form" method="post" action="{{ action }}" enctype="multipart/form-data">
+  <label for="name">Название</label>
+  <input id="name" name="name" type="text" value="{{ form.name }}"
+         maxlength="200" autocomplete="off" required>
+
+  <label for="category_id">Категория</label>
+  <select id="category_id" name="category_id" required>
+    <option value="" disabled{% if not form.category_id %} selected{% endif %}>Выберите категорию</option>
+    {% for category in categories %}
+    <option value="{{ category.id }}"{% if form.category_id | string == category.id | string %} selected{% endif %}>{{ category.name }}</option>
+    {% endfor %}
+  </select>
+
+  <label for="price">Цена, сомони</label>
+  <input id="price" name="price" type="number" inputmode="numeric"
+         min="1" step="1" value="{{ form.price }}" required>
+
+  <label for="description">Описание</label>
+  <textarea id="description" name="description" rows="5">{{ form.description }}</textarea>
+
+  {% if product and product.images %}
+  <fieldset class="photos">
+    <legend>Текущие фото</legend>
+    <div class="photo-grid">
+      {% for image in product.images %}
+      <div class="photo-tile">
+        <img src="/uploads/{{ image.file_path }}" alt="Фото {{ loop.index }}" loading="lazy">
+        {% if loop.first %}<span class="badge photo-main">Главное</span>{% endif %}
+        <label class="photo-remove">
+          <input type="checkbox" name="remove_image_ids" value="{{ image.id }}">
+          <span>Удалить фото</span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {% endif %}
+
+  <label for="photos">{{ "Добавить фото" if product else "Фото" }}</label>
+  <input id="photos" name="photos" type="file" multiple
+         accept="image/jpeg,image/png,image/webp">
+  <p class="hint">
+    До {{ max_images }} фото, первое — главное. JPEG, PNG или WEBP, до 5 МБ каждая.
+    {% if product %}Сейчас загружено: {{ current_count }}.{% endif %}
+  </p>
+
+  <button type="submit" class="btn btn-primary btn-block">
+    {{ icon("check", 18) }}<span>Сохранить</span>
+  </button>
+</form>
+{% endif %}
+{% endblock %}

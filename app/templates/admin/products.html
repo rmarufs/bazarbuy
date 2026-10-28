@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "products" %}
+{% block title %}Товары{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Товары</h1>
+  <a class="btn btn-primary btn-sm" href="/admin/products/new">
+    {{ icon("plus", 18) }}<span>Добавить товар</span>
+  </a>
+</div>
+
+<section class="list" aria-label="Список товаров">
+  {% for product in products %}
+  <article class="card product-row">
+    <div class="product-thumb">
+      {% if product.images %}
+      <img src="/uploads/{{ product.images[0].file_path }}" alt="" width="72" height="72" loading="lazy">
+      {% else %}
+      {{ icon("image", 28) }}
+      {% endif %}
+    </div>
+    <div class="product-info">
+      <span class="list-item-title">{{ product.name }}</span>
+      <span class="product-meta">{{ product.category.name }}</span>
+      <span class="product-price">{{ product.price }} сомони</span>
+    </div>
+    <div class="product-actions">
+      <a class="btn btn-soft btn-sm" href="/admin/products/{{ product.id }}/edit">
+        {{ icon("edit", 18) }}<span>Изменить</span>
+      </a>
+      <form method="post" action="/admin/products/{{ product.id }}/delete"
+            onsubmit="return confirm('Удалить товар?');">
+        <button type="submit" class="btn btn-danger btn-sm">
+          {{ icon("trash", 18) }}<span>Удалить</span>
+        </button>
+      </form>
+    </div>
+  </article>
+  {% else %}
+  <p class="empty">Товаров пока нет. Добавьте первый.</p>
+  {% endfor %}
+</section>
+{% endblock %}

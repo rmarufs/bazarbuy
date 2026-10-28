@@ -18,11 +18,12 @@ from app.services import auth_service
 router = APIRouter(prefix="/admin")
 
 SETTINGS_URL = "/admin/settings"
+PRODUCTS_URL = "/admin/products"
 
 
 @router.get("")
 async def admin_index() -> RedirectResponse:
-    return RedirectResponse(SETTINGS_URL, status_code=303)
+    return RedirectResponse(PRODUCTS_URL, status_code=303)
 
 
 @router.get("/login")

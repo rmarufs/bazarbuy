@@ -1,5 +1,7 @@
 from collections.abc import AsyncIterator
+from pathlib import Path
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -9,6 +11,15 @@ from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
 from app.services import auth_service
+
+
+@pytest.fixture(autouse=True)
+def upload_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point UPLOAD_DIR to a temporary folder so tests never touch real uploads."""
+    directory = tmp_path / "uploads"
+    directory.mkdir()
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(directory))
+    return directory
 
 
 @pytest_asyncio.fixture

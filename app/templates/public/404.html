@@ -1,0 +1,11 @@
+{% extends "public/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% block title %}Страница не найдена{% endblock %}
+{% block content %}
+<section class="card empty-state">
+  {{ icon("search", 36) }}
+  <h1>Страница не найдена</h1>
+  <p class="hint">Возможно, товар был удалён или ссылка неверна.</p>
+  <a class="btn btn-primary" href="/">Назад в каталог</a>
+</section>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% from "admin/_icons.html" import icon %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Каталог{% endblock %} — Bazarbuy.tj</title>
+  <meta name="description" content="Bazarbuy.tj — каталог товаров под предзаказ. Соберите корзину и отправьте заказ в WhatsApp.">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">Bazarbuy.tj</a>
+    <a class="cart-link" href="/cart" aria-label="Корзина">
+      {{ icon("cart", 24) }}
+      <span class="cart-badge" data-cart-count hidden>0</span>
+    </a>
+    <nav class="site-nav" aria-label="Разделы сайта">
+      <a href="/"{% if active_nav == "catalog" %} class="active" aria-current="page"{% endif %}>
+        {{ icon("grid") }}<span>Каталог</span>
+      </a>
+      <a href="/about"{% if active_nav == "about" %} class="active" aria-current="page"{% endif %}>
+        {{ icon("info") }}<span>О нас</span>
+      </a>
+      <a href="/contacts"{% if active_nav == "contacts" %} class="active" aria-current="page"{% endif %}>
+        {{ icon("phone") }}<span>Контакты</span>
+      </a>
+    </nav>
+  </header>
+  <main class="container container-wide">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">
+    <p>Bazarbuy.tj — все товары под предзаказ. Оплата на сайте не нужна.</p>
+  </footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

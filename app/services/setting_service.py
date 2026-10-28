@@ -10,6 +10,12 @@ class InvalidWhatsAppNumberError(ValueError):
     """Raised when the submitted WhatsApp number has an invalid format."""
 
 
+def build_whatsapp_url(number: str) -> str | None:
+    """Return the wa.me link for a stored number, or None if no number is set."""
+    digits = number.lstrip("+")
+    return f"https://wa.me/{digits}" if digits else None
+
+
 async def get_setting(session: AsyncSession) -> Setting:
     """Return the single Setting row, creating it with an empty number if missing."""
     result = await session.execute(select(Setting).order_by(Setting.id).limit(1))

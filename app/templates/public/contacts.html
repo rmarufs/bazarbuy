@@ -1,0 +1,18 @@
+{% extends "public/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "contacts" %}
+{% block title %}Контакты{% endblock %}
+{% block content %}
+<article class="card prose">
+  <h1>Контакты</h1>
+  <p>Свяжитесь с нами в WhatsApp: ответим на вопросы по товарам и предзаказу.</p>
+  {% if whatsapp_url %}
+  <p class="contact-number">{{ icon("phone", 20) }}<span>{{ whatsapp_number }}</span></p>
+  <a class="btn btn-primary" href="{{ whatsapp_url }}" target="_blank" rel="noopener">
+    {{ icon("message", 18) }}<span>Написать в WhatsApp</span>
+  </a>
+  {% else %}
+  <p class="hint">Номер WhatsApp пока не указан.</p>
+  {% endif %}
+</article>
+{% endblock %}

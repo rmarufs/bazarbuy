@@ -1,7 +1,7 @@
 from collections.abc import Collection
 
 from pydantic import ValidationError
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -62,14 +62,40 @@ async def _top_position(session: AsyncSession) -> int:
     return 0 if lowest is None else lowest - 1
 
 
-async def list_products(session: AsyncSession) -> list[Product]:
-    """All products, ordered by position, then newest first."""
-    result = await session.execute(
+def _ordered_products() -> Select[tuple[Product]]:
+    """Products with related data, ordered by position, then newest first."""
+    return (
         select(Product)
         .options(*_WITH_RELATIONS)
         .order_by(Product.position, Product.created_at.desc(), Product.id.desc())
         .execution_options(populate_existing=True)
     )
+
+
+async def list_products(session: AsyncSession) -> list[Product]:
+    """All products, ordered by position, then newest first."""
+    result = await session.execute(_ordered_products())
+    return list(result.scalars().all())
+
+
+async def list_catalog_products(
+    session: AsyncSession,
+    category_id: int | None = None,
+    query: str | None = None,
+) -> list[Product]:
+    """Products for the public catalog, optionally filtered by category and search.
+
+    The search ignores letter case and whitespace (see `normalize_search_name`).
+    """
+    statement = _ordered_products()
+    if category_id is not None:
+        statement = statement.where(Product.category_id == category_id)
+    needle = normalize_search_name(query or "")
+    if needle:
+        statement = statement.where(
+            Product.search_name.contains(needle, autoescape=True)
+        )
+    result = await session.execute(statement)
     return list(result.scalars().all())
 
 

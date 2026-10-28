@@ -1,0 +1,27 @@
+{% extends "public/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "about" %}
+{% block title %}О нас{% endblock %}
+{% block content %}
+<article class="card prose">
+  <h1>О нас</h1>
+  <p>
+    <strong class="brand-inline">Bazarbuy.tj</strong> — каталог товаров под заказ.
+    Мы не держим товары на складе: каждый товар привозится специально под клиента.
+    Поэтому весь сайт работает как <strong>предзаказ</strong>.
+  </p>
+  <h2>Как это работает</h2>
+  <ol class="steps">
+    <li>Выберите товары в каталоге и добавьте их в корзину.</li>
+    <li>Нажмите «Оформить предзаказ» — откроется WhatsApp с готовым сообщением.</li>
+    <li>Отправьте сообщение нам — мы свяжемся с вами и уточним детали и сроки.</li>
+  </ol>
+  <p>
+    Оплата на сайте не требуется: вам не нужно регистрироваться и вводить данные карты.
+    Нужно только собрать корзину и отправить заявку в WhatsApp.
+  </p>
+  <a class="btn btn-primary" href="/">
+    {{ icon("grid", 18) }}<span>Перейти в каталог</span>
+  </a>
+</article>
+{% endblock %}

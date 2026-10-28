@@ -1,0 +1,27 @@
+{% from "admin/_icons.html" import icon %}
+{#- Product card used by the catalog grid. -#}
+{% macro product_card(product) %}
+{% set image = "/uploads/" ~ product.images[0].file_path if product.images else "" %}
+<article class="product-card">
+  <a class="product-card-link" href="/products/{{ product.id }}">
+    <div class="product-card-media">
+      {% if image %}
+      <img src="{{ image }}" alt="{{ product.name }}" loading="lazy">
+      {% else %}
+      {{ icon("image", 40) }}
+      {% endif %}
+    </div>
+    <div class="product-card-body">
+      <h2 class="product-card-title">{{ product.name }}</h2>
+      <p class="product-card-price">{{ product.price }} сомони</p>
+    </div>
+  </a>
+  <button type="button" class="btn btn-primary btn-sm" data-add-to-cart
+          data-product-id="{{ product.id }}"
+          data-product-name="{{ product.name }}"
+          data-product-price="{{ product.price }}"
+          data-product-image="{{ image }}">
+    {{ icon("cart", 18) }}<span>В корзину</span>
+  </button>
+</article>
+{% endmacro %}

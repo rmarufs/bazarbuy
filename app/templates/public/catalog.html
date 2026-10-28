@@ -1,0 +1,48 @@
+{% extends "public/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% from "public/_product_card.html" import product_card %}
+{% set active_nav = "catalog" %}
+{% block title %}Каталог{% endblock %}
+{% block content %}
+<h1 class="visually-hidden">Каталог товаров</h1>
+
+<form class="search-form" method="get" action="/" role="search">
+  {% if selected_category_id is not none %}
+  <input type="hidden" name="category_id" value="{{ selected_category_id }}">
+  {% endif %}
+  <label class="visually-hidden" for="search">Поиск по названию</label>
+  <input id="search" name="q" type="search" value="{{ q }}" placeholder="Поиск по названию"
+         autocomplete="off" enterkeyhint="search">
+  {% if q %}
+  <a class="btn btn-ghost btn-icon" href="{{ catalog_url(selected_category_id) }}"
+     aria-label="Сбросить поиск" title="Сбросить поиск">{{ icon("x") }}</a>
+  {% endif %}
+  <button type="submit" class="btn btn-primary btn-icon" aria-label="Найти" title="Найти">
+    {{ icon("search") }}
+  </button>
+</form>
+
+<nav class="chips" aria-label="Категории">
+  <a class="chip{% if selected_category_id is none %} active{% endif %}"
+     href="{{ catalog_url(None, q) }}"{% if selected_category_id is none %} aria-current="true"{% endif %}>Все категории</a>
+  {% for category in categories if category.products_count or category.id == selected_category_id %}
+  <a class="chip{% if category.id == selected_category_id %} active{% endif %}"
+     href="{{ catalog_url(category.id, q) }}"{% if category.id == selected_category_id %} aria-current="true"{% endif %}>{{ category.name }}</a>
+  {% endfor %}
+</nav>
+
+{% if products %}
+<section class="product-grid" aria-label="Товары">
+  {% for product in products %}
+  {{ product_card(product) }}
+  {% endfor %}
+</section>
+{% else %}
+<section class="card empty-state">
+  {{ icon("search", 36) }}
+  <h2>Ничего не найдено</h2>
+  <p class="hint">Попробуйте изменить запрос или выбрать другую категорию.</p>
+  <a class="btn btn-primary" href="/">Сбросить фильтры</a>
+</section>
+{% endif %}
+{% endblock %}

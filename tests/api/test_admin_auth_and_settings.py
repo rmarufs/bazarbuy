@@ -44,7 +44,7 @@ async def test_login_success_sets_httponly_cookie(
     response = await login(client)
 
     assert response.status_code == 303
-    assert response.headers["location"] == "/admin/settings"
+    assert response.headers["location"] == "/admin/products"
     cookie = response.headers["set-cookie"]
     assert cookie.startswith(f"{SESSION_COOKIE_NAME}=")
     assert "HttpOnly" in cookie

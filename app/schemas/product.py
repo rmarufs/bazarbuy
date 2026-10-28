@@ -15,6 +15,12 @@ class ProductInput(BaseModel):
     category_id: int
 
 
+class ReorderRequest(BaseModel):
+    """Product ids in the order the admin wants them, top to bottom."""
+
+    ordered_ids: list[int]
+
+
 def normalize_search_name(name: str) -> str:
     """Remove all whitespace and ignore case: 'Louis Vuitton' -> 'louisvuitton'."""
     return "".join(name.split()).casefold()

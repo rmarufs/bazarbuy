@@ -15,6 +15,7 @@ _FIELD_MESSAGES = {
     "category_id": "Выберите категорию",
 }
 _DEFAULT_MESSAGE = "Проверьте данные формы"
+_INVALID_ORDER_MESSAGE = "Некорректный порядок товаров"
 
 # Related data is always loaded explicitly (no lazy loading).
 _WITH_RELATIONS = (selectinload(Product.category), selectinload(Product.images))
@@ -172,3 +173,51 @@ async def delete_product(session: AsyncSession, product_id: int) -> None:
     await session.delete(product)
     await session.commit()
     await image_service.delete_files(file_paths)
+
+
+async def bulk_delete_products(session: AsyncSession, product_ids: list[int]) -> int:
+    """Delete the chosen products and their image files; unknown ids are ignored.
+
+    Returns the number of deleted products.
+    """
+    unique_ids = set(product_ids)
+    if not unique_ids:
+        return 0
+    result = await session.execute(
+        select(Product)
+        .where(Product.id.in_(unique_ids))
+        .options(selectinload(Product.images))
+        .execution_options(populate_existing=True)
+    )
+    products = list(result.scalars().all())
+    file_paths = [image.file_path for p in products for image in p.images]
+    for product in products:
+        await session.delete(product)
+    await session.commit()
+    await image_service.delete_files(file_paths)
+    return len(products)
+
+
+async def reorder_products(session: AsyncSession, ordered_ids: list[int]) -> None:
+    """Make the listed products appear in this order, with positions 0, 1, 2, ...
+
+    Products missing from the list (e.g. added in another tab) keep their
+    relative order and go after the listed ones.
+    """
+    if not ordered_ids or len(set(ordered_ids)) != len(ordered_ids):
+        raise ProductError(_INVALID_ORDER_MESSAGE)
+    result = await session.execute(
+        select(Product)
+        .order_by(Product.position, Product.created_at.desc(), Product.id.desc())
+        .execution_options(populate_existing=True)
+    )
+    products = list(result.scalars().all())
+    by_id = {product.id: product for product in products}
+    if any(product_id not in by_id for product_id in ordered_ids):
+        raise ProductError(_INVALID_ORDER_MESSAGE)
+    listed = set(ordered_ids)
+    unlisted = [product for product in products if product.id not in listed]
+    ordered = [by_id[product_id] for product_id in ordered_ids] + unlisted
+    for position, product in enumerate(ordered):
+        product.position = position
+    await session.commit()

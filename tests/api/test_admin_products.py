@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,6 +81,8 @@ async def test_products_require_login(client: AsyncClient) -> None:
         ("GET", "/admin/products/1/edit"),
         ("POST", "/admin/products/1/edit"),
         ("POST", "/admin/products/1/delete"),
+        ("POST", "/admin/products/bulk-delete"),
+        ("POST", "/admin/products/reorder"),
     ]:
         response = await client.request(method, url, follow_redirects=False)
         assert response.status_code == 303, url
@@ -411,3 +413,155 @@ async def test_delete_ignores_files_missing_on_disk(
 
     assert response.status_code == 303
     assert await count_rows(db_session, Product) == 0
+
+async def create_three(
+    client: AsyncClient, session: AsyncSession, category: Category
+) -> list[Product]:
+    """Create p1, p2, p3 (in this order), each with one photo; returns [p1, p2, p3]."""
+    for index, name in enumerate(["p1", "p2", "p3"]):
+        await create_via_post(client, category, [photo(index)], name=name)
+    products = await product_service.list_products(session)
+    return sorted(products, key=lambda product: product.name)
+
+
+async def post_reorder(client: AsyncClient, ordered_ids: object) -> Response:
+    return await client.post(
+        "/admin/products/reorder", json={"ordered_ids": ordered_ids}
+    )
+
+
+async def test_bulk_delete_removes_selected_products_and_files(
+    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+) -> None:
+    category = await add_category(db_session)
+    p1, p2, p3 = await create_three(admin_client, db_session, category)
+    keep_files = {image.file_path for image in p1.images}
+    assert len(uploaded_files(upload_dir)) == 3
+
+    response = await admin_client.post(
+        "/admin/products/bulk-delete",
+        data={"product_ids": [str(p2.id), str(p3.id)]},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/products"
+    remaining = await product_service.list_products(db_session)
+    assert [product.id for product in remaining] == [p1.id]
+    assert await count_rows(db_session, ProductImage) == 1
+    assert uploaded_files(upload_dir) == keep_files
+
+
+async def test_bulk_delete_with_empty_list_does_nothing(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    await create_three(admin_client, db_session, category)
+
+    response = await admin_client.post(
+        "/admin/products/bulk-delete", follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/products"
+    assert await count_rows(db_session, Product) == 3
+
+
+async def test_bulk_delete_ignores_unknown_ids(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    p1, _, _ = await create_three(admin_client, db_session, category)
+
+    response = await admin_client.post(
+        "/admin/products/bulk-delete",
+        data={"product_ids": [str(p1.id), "99999"]},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert await count_rows(db_session, Product) == 2
+
+
+async def test_reorder_products(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    p1, p2, p3 = await create_three(admin_client, db_session, category)
+
+    response = await post_reorder(admin_client, [p3.id, p1.id, p2.id])
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    products = await product_service.list_products(db_session)
+    assert [product.name for product in products] == ["p3", "p1", "p2"]
+    assert [product.position for product in products] == [0, 1, 2]
+    page = (await admin_client.get("/admin/products")).text
+    assert page.index("p3") < page.index("p1") < page.index("p2")
+
+
+async def test_reorder_with_partial_list_keeps_the_rest_after(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    p1, p2, p3 = await create_three(admin_client, db_session, category)
+    # Current list order is p3, p2, p1.
+
+    response = await post_reorder(admin_client, [p1.id])
+
+    assert response.status_code == 200
+    products = await product_service.list_products(db_session)
+    assert [product.name for product in products] == ["p1", "p3", "p2"]
+    assert [product.position for product in products] == [0, 1, 2]
+
+
+async def test_new_product_goes_first_after_reorder(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    p1, p2, p3 = await create_three(admin_client, db_session, category)
+    await post_reorder(admin_client, [p2.id, p3.id, p1.id])
+
+    await create_via_post(admin_client, category, name="p4")
+
+    products = await product_service.list_products(db_session)
+    assert [product.name for product in products] == ["p4", "p2", "p3", "p1"]
+
+
+async def test_reorder_rejects_invalid_data(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    p1, p2, p3 = await create_three(admin_client, db_session, category)
+    before = [product.id for product in await product_service.list_products(db_session)]
+
+    for bad in ([], [p1.id, p1.id], [p1.id, 99999], "abc", [None], ["x"]):
+        response = await post_reorder(admin_client, bad)
+        assert response.status_code == 400, bad
+        assert response.json()["status"] == "error"
+
+    response = await admin_client.post(
+        "/admin/products/reorder", content="not json", headers={"content-type": "application/json"}
+    )
+    assert response.status_code == 400
+    response = await admin_client.post("/admin/products/reorder", json=[1, 2])
+    assert response.status_code == 400
+
+    after = [product.id for product in await product_service.list_products(db_session)]
+    assert after == before
+
+
+async def test_products_page_has_bulk_controls_and_handles(
+    admin_client: AsyncClient, db_session: AsyncSession
+) -> None:
+    category = await add_category(db_session)
+    await create_three(admin_client, db_session, category)
+
+    page = (await admin_client.get("/admin/products")).text
+
+    assert page.count('class="grip"') == 3
+    assert page.count('name="product_ids"') == 3
+    assert 'id="select-all"' in page
+    assert "Удалить выбранные" in page
+    assert "/static/js/admin_products.js" in page
+    assert (await admin_client.get("/static/js/admin_products.js")).status_code == 200

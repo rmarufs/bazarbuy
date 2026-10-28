@@ -17,7 +17,6 @@ from app.services import auth_service
 
 router = APIRouter(prefix="/admin")
 
-SETTINGS_URL = "/admin/settings"
 PRODUCTS_URL = "/admin/products"
 
 
@@ -29,7 +28,7 @@ async def admin_index() -> RedirectResponse:
 @router.get("/login")
 async def login_page(request: Request) -> Response:
     if get_session_admin_id(request) is not None:
-        return RedirectResponse(SETTINGS_URL, status_code=303)
+        return RedirectResponse(PRODUCTS_URL, status_code=303)
     return templates.TemplateResponse(request, "admin/login.html", {"error": None})
 
 
@@ -48,7 +47,7 @@ async def login(
             {"error": "Неверный логин или пароль", "username": username},
             status_code=401,
         )
-    response = RedirectResponse(SETTINGS_URL, status_code=303)
+    response = RedirectResponse(PRODUCTS_URL, status_code=303)
     response.set_cookie(
         SESSION_COOKIE_NAME, create_session_token(admin.id), **session_cookie_params()
     )

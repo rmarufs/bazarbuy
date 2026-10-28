@@ -10,13 +10,14 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_admin_id
 from app.core.templating import templates
 from app.models import Product
+from app.schemas.product import ReorderRequest
 from app.services import category_service, image_service, product_service
 from app.services.product_service import ProductError, ProductNotFoundError
 
@@ -124,6 +125,35 @@ async def create_product(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
     return RedirectResponse(PRODUCTS_URL, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_products(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    product_ids: Annotated[list[int] | None, Form()] = None,
+) -> RedirectResponse:
+    await product_service.bulk_delete_products(db, product_ids or [])
+    return RedirectResponse(PRODUCTS_URL, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/reorder")
+async def reorder_products(
+    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
+) -> JSONResponse:
+    try:
+        payload = ReorderRequest.model_validate(await request.json())
+        await product_service.reorder_products(db, payload.ordered_ids)
+    except ValueError as error:  # bad JSON, bad shape (ValidationError) or ProductError
+        message = (
+            str(error)
+            if isinstance(error, ProductError)
+            else "Некорректный порядок товаров"
+        )
+        return JSONResponse(
+            {"status": "error", "detail": message},
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+    return JSONResponse({"status": "ok"})
 
 
 @router.get("/{product_id}/edit")

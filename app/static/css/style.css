@@ -265,10 +265,60 @@ input[type="file"]:focus-visible { outline: none; box-shadow: var(--focus-ring);
 /* Product rows (admin list) */
 .product-row {
   display: grid;
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: auto 72px 1fr;
   gap: 12px;
   align-items: center;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
 }
+
+.product-row.is-dragging {
+  position: relative;
+  z-index: 1;
+  background: var(--primary-light);
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.2);
+}
+
+body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+
+.product-controls { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.product-check,
+.check-all input { width: 20px; height: 20px; margin: 0; accent-color: var(--primary); cursor: pointer; }
+
+.grip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #94A3B8;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: grab;
+  touch-action: none; /* lets a finger drag the handle instead of scrolling the page */
+}
+.grip:hover { color: var(--primary-hover); background: var(--primary-light); }
+.grip:focus-visible { outline: none; color: var(--primary-hover); box-shadow: var(--focus-ring); }
+
+/* Bulk action toolbar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 16px;
+}
+.check-all { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.toolbar-count { margin-right: auto; font-size: 0.9rem; color: var(--muted); }
+.toolbar .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.toolbar .btn-danger:disabled:hover { background: transparent; border-color: var(--border); }
+
+.reorder-hint { margin: 0 0 12px; }
+.reorder-status { margin: 0 0 12px; font-size: 0.9rem; color: var(--success); }
+.reorder-status.is-error { color: #B91C1C; }
 
 .product-thumb {
   display: flex;
@@ -335,6 +385,6 @@ input[type="file"]:focus-visible { outline: none; box-shadow: var(--focus-ring);
   .container { padding: 24px; }
   .card { padding: 20px; }
   .card-narrow { max-width: 420px; margin: 48px auto 0; }
-  .product-row { grid-template-columns: 72px 1fr auto; }
+  .product-row { grid-template-columns: auto 72px 1fr auto; }
   .product-actions { grid-column: auto; }
 }

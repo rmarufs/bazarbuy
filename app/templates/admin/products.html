@@ -10,9 +10,32 @@
   </a>
 </div>
 
-<section class="list" aria-label="Список товаров">
+{% if products %}
+<form id="bulk-form" class="card toolbar" method="post" action="/admin/products/bulk-delete">
+  <label class="check-all">
+    <input type="checkbox" id="select-all">
+    <span>Выбрать все</span>
+  </label>
+  <span class="toolbar-count" id="selected-count" aria-live="polite">Выбрано: 0</span>
+  <button type="submit" class="btn btn-danger btn-sm" id="bulk-delete-button" disabled>
+    {{ icon("trash", 18) }}<span>Удалить выбранные</span>
+  </button>
+</form>
+<p class="hint reorder-hint">Меняйте порядок, перетаскивая товары за иконку слева.</p>
+<p class="reorder-status" id="reorder-status" role="status" hidden></p>
+{% endif %}
+
+<section class="list" id="product-list" data-reorder-url="/admin/products/reorder" aria-label="Список товаров">
   {% for product in products %}
-  <article class="card product-row">
+  <article class="card product-row" data-id="{{ product.id }}">
+    <div class="product-controls">
+      <input type="checkbox" class="product-check" name="product_ids" value="{{ product.id }}"
+             form="bulk-form" aria-label="Выбрать товар «{{ product.name }}»">
+      <button type="button" class="grip" aria-label="Перетащить товар «{{ product.name }}»"
+              title="Перетащить">
+        {{ icon("grip", 22) }}
+      </button>
+    </div>
     <div class="product-thumb">
       {% if product.images %}
       <img src="/uploads/{{ product.images[0].file_path }}" alt="" width="72" height="72" loading="lazy">
@@ -41,4 +64,7 @@
   <p class="empty">Товаров пока нет. Добавьте первый.</p>
   {% endfor %}
 </section>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/admin_products.js" defer></script>
 {% endblock %}

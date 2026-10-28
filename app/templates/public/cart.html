@@ -1,0 +1,50 @@
+{% extends "public/base.html" %}
+{% from "admin/_icons.html" import icon %}
+{% set active_nav = "cart" %}
+{% block title %}Корзина{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Корзина</h1>
+  <button type="button" class="btn btn-danger btn-sm" id="cart-clear-btn" hidden>
+    {{ icon("trash", 18) }}<span>Очистить корзину</span>
+  </button>
+</div>
+
+<div id="cart-container"
+     data-whatsapp-number="{{ whatsapp_number }}"
+     data-whatsapp-url="{{ whatsapp_url or '' }}">
+  <section class="card empty-state" id="cart-empty">
+    {{ icon("cart", 36) }}
+    <h2>Корзина пуста</h2>
+    <p class="hint">Добавьте товары из каталога, чтобы оформить предзаказ.</p>
+    <a class="btn btn-primary" href="/">
+      {{ icon("grid", 18) }}<span>Перейти в каталог</span>
+    </a>
+  </section>
+
+  <div class="cart-layout" id="cart-content" hidden>
+    <section class="cart-items" id="cart-items" aria-label="Товары в корзине"></section>
+
+    <aside class="card cart-summary" aria-label="Итог заказа">
+      <div class="cart-total-row">
+        <span>Итого:</span>
+        <strong class="cart-total-value" id="cart-total">0 сомони</strong>
+      </div>
+      <p class="hint">Все товары везутся под предзаказ. Оплата на сайте не требуется.</p>
+      {% if whatsapp_url %}
+      <a id="whatsapp-order-btn" class="btn btn-primary btn-block"
+         href="{{ whatsapp_url }}" target="_blank" rel="noopener">
+        {{ icon("message", 18) }}<span>Оформить предзаказ в WhatsApp</span>
+      </a>
+      {% else %}
+      <button id="whatsapp-order-btn" type="button" class="btn btn-primary btn-block" disabled>
+        {{ icon("message", 18) }}<span>Оформить предзаказ в WhatsApp</span>
+      </button>
+      <p class="hint cart-whatsapp-warning" id="whatsapp-missing-hint">
+        Номер WhatsApp для заказов временно не указан
+      </p>
+      {% endif %}
+    </aside>
+  </div>
+</div>
+{% endblock %}

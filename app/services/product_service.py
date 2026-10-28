@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Product, ProductImage
-from app.schemas.product import ProductInput, normalize_search_name
+from app.schemas.product import CartItemOut, ProductInput, normalize_search_name
 from app.services import category_service, image_service
 
 _FIELD_MESSAGES = {
@@ -108,6 +108,54 @@ async def get_product(session: AsyncSession, product_id: int) -> Product | None:
         .execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
+
+
+def parse_product_ids(raw_ids: str) -> list[int]:
+    """Parse a comma-separated string of product IDs into positive integers."""
+    parsed: list[int] = []
+    for part in raw_ids.split(","):
+        cleaned = part.strip()
+        if cleaned.isdigit():
+            value = int(cleaned)
+            if value > 0:
+                parsed.append(value)
+    return parsed
+
+
+async def get_products_by_ids(
+    session: AsyncSession, product_ids: list[int]
+) -> list[Product]:
+    """Return existing products for the given IDs, preserving the input order."""
+    unique_ids = list(dict.fromkeys(product_ids))
+    if not unique_ids:
+        return []
+    result = await session.execute(
+        select(Product)
+        .where(Product.id.in_(unique_ids))
+        .options(*_WITH_RELATIONS)
+        .execution_options(populate_existing=True)
+    )
+    by_id = {product.id: product for product in result.scalars().all()}
+    return [by_id[product_id] for product_id in unique_ids if product_id in by_id]
+
+
+async def get_cart_items(
+    session: AsyncSession, product_ids: list[int]
+) -> list[CartItemOut]:
+    """Return current catalog data for the requested cart product IDs."""
+    products = await get_products_by_ids(session, product_ids)
+    return [
+        CartItemOut(
+            id=product.id,
+            name=product.name,
+            price=product.price,
+            image_url=(
+                f"/uploads/{product.images[0].file_path}" if product.images else ""
+            ),
+            url=f"/products/{product.id}",
+        )
+        for product in products
+    ]
 
 
 async def create_product(

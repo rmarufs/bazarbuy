@@ -21,6 +21,16 @@ class ReorderRequest(BaseModel):
     ordered_ids: list[int]
 
 
+class CartItemOut(BaseModel):
+    """Actual product fields returned to synchronize the browser cart."""
+
+    id: int
+    name: str
+    price: int
+    image_url: str
+    url: str
+
+
 def normalize_search_name(name: str) -> str:
     """Remove all whitespace and ignore case: 'Louis Vuitton' -> 'louisvuitton'."""
     return "".join(name.split()).casefold()

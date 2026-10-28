@@ -11,7 +11,7 @@
 <body>
   <header class="site-header">
     <a class="brand" href="/">Bazarbuy.tj</a>
-    <a class="cart-link" href="/cart" aria-label="Корзина">
+    <a class="cart-link{% if active_nav == 'cart' %} active{% endif %}" href="/cart" aria-label="Корзина">
       {{ icon("cart", 24) }}
       <span class="cart-badge" data-cart-count hidden>0</span>
     </a>
@@ -33,6 +33,7 @@
   <footer class="site-footer">
     <p>Bazarbuy.tj — все товары под предзаказ. Оплата на сайте не нужна.</p>
   </footer>
+  <script src="/static/js/cart.js" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

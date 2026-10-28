@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.templating import templates
+from app.schemas.product import CartItemOut
 from app.services import category_service, product_service, setting_service
 
 router = APIRouter()
@@ -68,3 +69,31 @@ async def contacts_page(
             ),
         },
     )
+
+
+@router.get("/cart")
+async def cart_page(
+    request: Request, db: Annotated[AsyncSession, Depends(get_db)]
+) -> Response:
+    setting = await setting_service.get_setting(db)
+    return templates.TemplateResponse(
+        request,
+        "public/cart.html",
+        {
+            "whatsapp_number": setting.whatsapp_number,
+            "whatsapp_url": setting_service.build_whatsapp_url(
+                setting.whatsapp_number
+            ),
+        },
+    )
+
+
+@router.get("/api/cart-items")
+async def cart_items_api(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    ids: Annotated[list[str] | None, Query()] = None,
+) -> list[CartItemOut]:
+    raw_ids = ",".join(ids or [])
+    product_ids = product_service.parse_product_ids(raw_ids)
+    return await product_service.get_cart_items(db, product_ids)
+

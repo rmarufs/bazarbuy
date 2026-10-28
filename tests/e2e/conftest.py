@@ -19,7 +19,12 @@ from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.core.database import Base
-from app.services import auth_service, category_service, product_service
+from app.services import (
+    auth_service,
+    category_service,
+    product_service,
+    setting_service,
+)
 
 T = TypeVar("T")
 
@@ -29,6 +34,8 @@ VIEWPORT = {"width": 390, "height": 844}  # mobile first, see docs/SPEC.md
 ADMIN_USERNAME = "owner"
 ADMIN_PASSWORD = "secret-pass"
 CATEGORY_NAME = "Сумки"
+SECOND_CATEGORY_NAME = "Обувь"
+WHATSAPP_NUMBER = "+992900112233"
 SERVER_START_TIMEOUT = 20.0
 
 
@@ -164,20 +171,69 @@ def live_server(database: None, upload_dir: Path, tmp_path: Path) -> Iterator[Li
 
 @pytest.fixture
 def seed_products(database: None) -> Callable[[list[str]], None]:
-    """Create the category and products (with one photo each) directly in the DB.
+    """Create the category and products directly in the DB.
 
     The last name in the list ends up first on the page (newest on top).
     """
 
     def seed(names: list[str]) -> None:
         async def action(session: AsyncSession) -> None:
+            await setting_service.update_whatsapp_number(session, WHATSAPP_NUMBER)
             category = await category_service.create_category(session, CATEGORY_NAME)
+            photos = [
+                make_image("JPEG", "red"),
+                make_image("JPEG", "green"),
+                make_image("JPEG", "blue"),
+            ]
             for index, name in enumerate(names):
                 await product_service.create_product(
-                    session, name, "", 100 + index, category.id, [make_image()]
+                    session,
+                    name,
+                    f"Описание для {name}",
+                    100 + index,
+                    category.id,
+                    photos if index == len(names) - 1 else [photos[0]],
                 )
 
         run_with_session(action)
+
+    return seed
+
+
+@pytest.fixture
+def seed_public_catalog(database: None) -> Callable[[], dict[str, int]]:
+    """Seed two categories, products with multiple photos, and WhatsApp settings."""
+
+    def seed() -> dict[str, int]:
+        async def action(session: AsyncSession) -> dict[str, int]:
+            await setting_service.update_whatsapp_number(session, WHATSAPP_NUMBER)
+            bags = await category_service.create_category(session, CATEGORY_NAME)
+            shoes = await category_service.create_category(
+                session, SECOND_CATEGORY_NAME
+            )
+            sneakers = await product_service.create_product(
+                session,
+                "Кроссовки Nike",
+                "Удобные кроссовки под предзаказ.",
+                400,
+                shoes.id,
+                [make_image("JPEG", "navy")],
+            )
+            bag = await product_service.create_product(
+                session,
+                "Сумка Louis Vuitton",
+                "Кожаная сумка премиум-класса под предзаказ.",
+                250,
+                bags.id,
+                [
+                    make_image("JPEG", "red"),
+                    make_image("JPEG", "green"),
+                    make_image("JPEG", "blue"),
+                ],
+            )
+            return {"bag_id": bag.id, "sneakers_id": sneakers.id}
+
+        return run_with_session(action)
 
     return seed
 

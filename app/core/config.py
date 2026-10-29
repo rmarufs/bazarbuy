@@ -13,12 +13,21 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TEST_DATABASE_URL: str | None = None
     SECRET_KEY: str
+    UPLOAD_DIR: str = "uploads"
     APP_ENV: str = "development"
     CLOUDINARY_CLOUD_NAME: str | None = None
     CLOUDINARY_API_KEY: str | None = None
     CLOUDINARY_API_SECRET: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    @property
+    def use_cloudinary(self) -> bool:
+        return bool(
+            self.CLOUDINARY_CLOUD_NAME
+            and self.CLOUDINARY_API_KEY
+            and self.CLOUDINARY_API_SECRET
+        )
 
     @model_validator(mode="after")
     def validate_production_secret_key(self) -> Self:
@@ -32,6 +41,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"SECRET_KEY must be at least {MIN_PRODUCTION_SECRET_KEY_LENGTH} "
                     "characters long in production"
+                )
+            if not self.use_cloudinary:
+                raise ValueError(
+                    "Cloudinary credentials are required in production because local "
+                    "disk storage is not persistent on hosting"
                 )
         return self
 

@@ -1,8 +1,9 @@
 import asyncio
 import io
 import logging
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import cloudinary
 import cloudinary.uploader
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 MAX_IMAGES_PER_PRODUCT = 5
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 CLOUDINARY_FOLDER = "bazarbuy/products"
+LOCAL_URL_PREFIX = "/uploads/"
 
 # Allowed Pillow formats mapped to the file extension we validate.
 _EXTENSIONS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
@@ -23,9 +25,6 @@ _EXTENSIONS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
 TOO_MANY_MESSAGE = f"У товара может быть не более {MAX_IMAGES_PER_PRODUCT} фотографий"
 TOO_BIG_MESSAGE = "Размер фотографии не должен превышать 5 МБ"
 INVALID_MESSAGE = "Допустимы только изображения JPEG, PNG или WEBP"
-MISSING_CONFIG_MESSAGE = (
-    "Загрузка изображений не настроена (отсутствуют ключи Cloudinary)"
-)
 UPLOAD_ERROR_MESSAGE = "Не удалось загрузить фотографию"
 
 
@@ -67,13 +66,36 @@ async def read_uploads(files: list[UploadFile] | None) -> list[bytes]:
     ]
 
 
+# --- Local disk backend ---
+
+
+def _upload_dir() -> Path:
+    return Path(settings.UPLOAD_DIR)
+
+
+def _save_local_sync(data: bytes, extension: str) -> str:
+    directory = _upload_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    file_name = f"{uuid4().hex}.{extension}"
+    (directory / file_name).write_bytes(data)
+    return f"{LOCAL_URL_PREFIX}{file_name}"
+
+
+def _delete_local_sync(url: str) -> None:
+    # Only the file name is used, so a stored path can never leave the upload dir.
+    file_name = Path(url).name
+    if not file_name or file_name in (".", ".."):
+        return
+    try:
+        (_upload_dir() / file_name).unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Failed to delete local image: %s", url, exc_info=True)
+
+
+# --- Cloudinary backend ---
+
+
 def _configure_cloudinary() -> None:
-    if (
-        not settings.CLOUDINARY_CLOUD_NAME
-        or not settings.CLOUDINARY_API_KEY
-        or not settings.CLOUDINARY_API_SECRET
-    ):
-        raise ImageError(MISSING_CONFIG_MESSAGE)
     cloudinary.config(
         cloud_name=settings.CLOUDINARY_CLOUD_NAME,
         api_key=settings.CLOUDINARY_API_KEY,
@@ -93,8 +115,7 @@ def extract_public_id(url: str) -> str | None:
     return f"{CLOUDINARY_FOLDER}/{name}" if name else None
 
 
-def _upload_image_sync(data: bytes) -> str:
-    detect_extension(data)
+def _upload_cloudinary_sync(data: bytes) -> str:
     _configure_cloudinary()
     try:
         result = cloudinary.uploader.upload(
@@ -111,13 +132,7 @@ def _upload_image_sync(data: bytes) -> str:
     return secure_url
 
 
-async def upload_image(file: UploadFile | bytes) -> str:
-    """Validate and upload a single image to Cloudinary; return its secure HTTPS URL."""
-    data = file if isinstance(file, bytes) else await file.read(MAX_IMAGE_BYTES + 1)
-    return await asyncio.to_thread(_upload_image_sync, data)
-
-
-def _delete_image_sync(url: str) -> None:
+def _delete_cloudinary_sync(url: str) -> None:
     public_id = extract_public_id(url)
     if not public_id:
         return
@@ -128,13 +143,36 @@ def _delete_image_sync(url: str) -> None:
         logger.warning("Failed to delete image from Cloudinary: %s", url, exc_info=True)
 
 
+# --- Public API ---
+
+
+def _upload_image_sync(data: bytes) -> str:
+    extension = detect_extension(data)
+    if settings.use_cloudinary:
+        return _upload_cloudinary_sync(data)
+    return _save_local_sync(data, extension)
+
+
+async def upload_image(file: UploadFile | bytes) -> str:
+    """Validate and store a single image (Cloudinary or local); return its URL/path."""
+    data = file if isinstance(file, bytes) else await file.read(MAX_IMAGE_BYTES + 1)
+    return await asyncio.to_thread(_upload_image_sync, data)
+
+
+def _delete_image_sync(url: str) -> None:
+    if url.startswith(LOCAL_URL_PREFIX):
+        _delete_local_sync(url)
+    else:
+        _delete_cloudinary_sync(url)
+
+
 async def delete_image(url: str) -> None:
-    """Remove an image from Cloudinary by its URL; errors are logged and ignored."""
+    """Remove an image by its URL or local path; errors are logged and ignored."""
     await asyncio.to_thread(_delete_image_sync, url)
 
 
 async def save_images(images: list[bytes]) -> list[str]:
-    """Validate all images, then upload them; roll back already uploaded on failure."""
+    """Validate all images, then store them; roll back already stored on failure."""
     for data in images:
         detect_extension(data)
     uploaded_urls: list[str] = []
@@ -148,6 +186,6 @@ async def save_images(images: list[bytes]) -> list[str]:
 
 
 async def delete_files(urls: list[str]) -> None:
-    """Remove multiple images from Cloudinary; errors are logged and ignored."""
+    """Remove multiple images; errors are logged and ignored."""
     for url in urls:
         await delete_image(url)

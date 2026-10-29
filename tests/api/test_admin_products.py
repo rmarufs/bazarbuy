@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -452,16 +453,31 @@ async def test_delete_ignores_cloudinary_errors(
     destroy_mock.assert_called_once_with(expected_public_id, resource_type="image")
 
 
-async def test_cloudinary_upload_requires_credentials(
-    monkeypatch: pytest.MonkeyPatch,
+async def test_local_image_backend_saves_deletes_and_prevents_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    upload_dir = tmp_path / "uploads"
+    outside_file = tmp_path / "outside.jpg"
+    outside_file.write_bytes(b"keep-me")
+
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(upload_dir))
     monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", None)
     monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", None)
     monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", None)
-    with pytest.raises(
-        image_service.ImageError, match=image_service.MISSING_CONFIG_MESSAGE[:20]
-    ):
-        image_service._upload_image_sync(make_image("JPEG"))
+
+    url = image_service._upload_image_sync(make_image("PNG", "green"))
+    assert url.startswith("/uploads/") and url.endswith(".png")
+    saved_file = upload_dir / Path(url).name
+    assert saved_file.is_file()
+
+    # Path traversal attempt must only touch a file inside upload_dir, never outside.
+    image_service._delete_image_sync("/uploads/../outside.jpg")
+    assert outside_file.is_file()
+
+    image_service._delete_image_sync(url)
+    assert not saved_file.exists()
+    # Deleting an already removed file must not raise.
+    image_service._delete_image_sync(url)
 
 
 async def create_three(

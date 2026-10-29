@@ -9,7 +9,7 @@ Python, FastAPI, Pydantic, async SQLAlchemy + asyncpg, PostgreSQL, Alembic, Jinj
 - `app/routers`: only HTTP handling, call services. No business logic here.
 - `app/services`: all business logic.
 - `app/models`: SQLAlchemy tables. `app/schemas`: Pydantic.
-- `app/templates`, `app/static`: UI. Product photos are stored in Cloudinary (see image_service).
+- `app/templates`, `app/static`: UI. Product photos are stored in Cloudinary or locally in `uploads/` as a dev fallback (see `image_service`).
 - `tests/api`: pytest. `tests/e2e`: Playwright.
 
 ## Rules

@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.core.config import settings
 from app.core.templating import BASE_DIR
 from app.routers import (
     admin_auth,
@@ -12,6 +15,10 @@ from app.routers import (
 
 app = FastAPI(title="Bazarbuy.tj")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+if not settings.use_cloudinary:
+    upload_path = Path(settings.UPLOAD_DIR)
+    upload_path.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=upload_path), name="uploads")
 app.include_router(admin_auth.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_categories.router)

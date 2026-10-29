@@ -294,8 +294,12 @@ def test_settings_rejects_weak_or_placeholder_secret_key_in_production() -> None
         DATABASE_URL=db_url,
         SECRET_KEY="s" * 32,
         APP_ENV="production",
+        CLOUDINARY_CLOUD_NAME="demo",
+        CLOUDINARY_API_KEY="key",
+        CLOUDINARY_API_SECRET="secret",
     )
     assert prod.APP_ENV == "production"
+    assert prod.use_cloudinary is True
 
     dev = Settings(
         _env_file=None,
@@ -304,3 +308,27 @@ def test_settings_rejects_weak_or_placeholder_secret_key_in_production() -> None
         APP_ENV="development",
     )
     assert dev.APP_ENV == "development"
+    assert dev.use_cloudinary is False
+
+
+def test_settings_requires_cloudinary_in_production() -> None:
+    db_url = "postgresql+asyncpg://u:p@localhost:5432/db"
+    valid_secret = "s" * 32
+
+    with pytest.raises(ValidationError, match="Cloudinary"):
+        Settings(
+            _env_file=None,
+            DATABASE_URL=db_url,
+            SECRET_KEY=valid_secret,
+            APP_ENV="production",
+        )
+
+    with pytest.raises(ValidationError, match="Cloudinary"):
+        Settings(
+            _env_file=None,
+            DATABASE_URL=db_url,
+            SECRET_KEY=valid_secret,
+            APP_ENV="production",
+            CLOUDINARY_CLOUD_NAME="demo",
+            CLOUDINARY_API_KEY="key",
+        )

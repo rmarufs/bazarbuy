@@ -1,5 +1,7 @@
 # Bazarbuy.tj
 
+[![CI](https://github.com/rmarufs/bazarbuy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rmarufs/bazarbuy/actions/workflows/ci.yml)
+
 Каталог товаров с оформлением предзаказа через WhatsApp без онлайн-оплаты. Покупатель собирает корзину на сайте и отправляет готовое сообщение с заказом владельцу в WhatsApp. Интерфейс спроектирован с приоритетом мобильной версии (mobile-first), валюта — сомони (TJS).
 
 Подробная спецификация проекта: [`docs/SPEC.md`](docs/SPEC.md).
@@ -99,6 +101,8 @@ pytest             # все тесты (API и e2e)
 pytest tests/api   # только API и модульные тесты
 pytest tests/e2e   # только браузерные e2e-тесты (Playwright)
 ```
+
+Проверка кода линтером и форматтером: `ruff check .` и `ruff format --check .`.
 
 Если `TEST_DATABASE_URL` не задан, тесты, которым нужна база данных, автоматически пропускаются (`skipped`).
 

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install ruff==0.17.3
+      - name: Run ruff check
+        run: ruff check .
+      - name: Run ruff format check
+        run: ruff format --check .
+
+  tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bazarbuy
+          POSTGRES_PASSWORD: bazarbuy
+          POSTGRES_DB: bazarbuy
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U bazarbuy -d bazarbuy"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql+asyncpg://bazarbuy:bazarbuy@localhost:5432/bazarbuy
+      TEST_DATABASE_URL: postgresql+asyncpg://bazarbuy:bazarbuy@localhost:5432/bazarbuy_test
+      SECRET_KEY: ci-test-secret-key
+      APP_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Create test database
+        env:
+          PGPASSWORD: bazarbuy
+        run: psql -h localhost -U bazarbuy -d bazarbuy -c "CREATE DATABASE bazarbuy_test;"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Install Playwright Chromium
+        run: playwright install --with-deps chromium
+      - name: Apply Alembic migrations
+        run: alembic upgrade head
+      - name: Run tests
+        run: pytest

@@ -222,7 +222,10 @@ async def test_oversized_image_is_rejected(
     admin_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session)
-    big = ("photos", ("big.jpg", b"0" * (image_service.MAX_IMAGE_BYTES + 1), "image/jpeg"))
+    big = (
+        "photos",
+        ("big.jpg", b"0" * (image_service.MAX_IMAGE_BYTES + 1), "image/jpeg"),
+    )
 
     response = await admin_client.post(
         "/admin/products/new", data=product_data(category), files=[big]
@@ -367,7 +370,13 @@ async def test_edit_allows_five_after_removing(
     )
 
     assert response.status_code == 303
-    assert [i.position for i in (await only_product(db_session)).images] == [0, 1, 2, 3, 4]
+    assert [i.position for i in (await only_product(db_session)).images] == [
+        0,
+        1,
+        2,
+        3,
+        4,
+    ]
 
 
 async def test_edit_unknown_product_returns_404(admin_client: AsyncClient) -> None:
@@ -413,6 +422,7 @@ async def test_delete_ignores_files_missing_on_disk(
 
     assert response.status_code == 303
     assert await count_rows(db_session, Product) == 0
+
 
 async def create_three(
     client: AsyncClient, session: AsyncSession, category: Category
@@ -541,7 +551,9 @@ async def test_reorder_rejects_invalid_data(
         assert response.json()["status"] == "error"
 
     response = await admin_client.post(
-        "/admin/products/reorder", content="not json", headers={"content-type": "application/json"}
+        "/admin/products/reorder",
+        content="not json",
+        headers={"content-type": "application/json"},
     )
     assert response.status_code == 400
     response = await admin_client.post("/admin/products/reorder", json=[1, 2])

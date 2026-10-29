@@ -64,9 +64,7 @@ async def contacts_page(
         "public/contacts.html",
         {
             "whatsapp_number": setting.whatsapp_number,
-            "whatsapp_url": setting_service.build_whatsapp_url(
-                setting.whatsapp_number
-            ),
+            "whatsapp_url": setting_service.build_whatsapp_url(setting.whatsapp_number),
         },
     )
 
@@ -81,9 +79,7 @@ async def cart_page(
         "public/cart.html",
         {
             "whatsapp_number": setting.whatsapp_number,
-            "whatsapp_url": setting_service.build_whatsapp_url(
-                setting.whatsapp_number
-            ),
+            "whatsapp_url": setting_service.build_whatsapp_url(setting.whatsapp_number),
         },
     )
 
@@ -96,4 +92,3 @@ async def cart_items_api(
     raw_ids = ",".join(ids or [])
     product_ids = product_service.parse_product_ids(raw_ids)
     return await product_service.get_cart_items(db, product_ids)
-

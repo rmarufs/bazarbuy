@@ -57,9 +57,7 @@ def detect_extension(data: bytes) -> str:
 async def read_uploads(files: list[UploadFile] | None) -> list[bytes]:
     """Read the chosen files; the empty file part browsers send is skipped."""
     return [
-        await file.read(MAX_IMAGE_BYTES + 1)
-        for file in files or []
-        if file.filename
+        await file.read(MAX_IMAGE_BYTES + 1) for file in files or [] if file.filename
     ]
 
 

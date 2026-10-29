@@ -100,7 +100,8 @@ async def list_catalog_products(
 
 
 async def get_product(session: AsyncSession, product_id: int) -> Product | None:
-    # populate_existing: always reflect the database, even for objects already in the session.
+    # populate_existing: always reflect the database, even for objects
+    # already in the session.
     result = await session.execute(
         select(Product)
         .where(Product.id == product_id)

@@ -8,7 +8,7 @@ import time
 from collections.abc import Awaitable, Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 import httpx
 import pytest
@@ -25,8 +25,6 @@ from app.services import (
     setting_service,
 )
 from tests.conftest import get_test_database_url
-
-T = TypeVar("T")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCREENSHOT_DIR = Path(__file__).parent / "screenshots"
@@ -55,7 +53,7 @@ def make_image(image_format: str = "JPEG", color: str = "red") -> bytes:
     return buffer.getvalue()
 
 
-def run_async(coroutine_factory: Callable[[], Awaitable[T]]) -> T:
+def run_async[T](coroutine_factory: Callable[[], Awaitable[T]]) -> T:
     """Run async code in its own thread and loop.
 
     Playwright's sync API keeps an event loop alive in the main thread, so
@@ -69,7 +67,7 @@ def run_async(coroutine_factory: Callable[[], Awaitable[T]]) -> T:
         return pool.submit(asyncio.run, runner()).result()
 
 
-def run_with_session(action: Callable[[AsyncSession], Awaitable[T]]) -> T:
+def run_with_session[T](action: Callable[[AsyncSession], Awaitable[T]]) -> T:
     """Run `action` with a session bound to the test database."""
 
     async def factory() -> T:
@@ -106,7 +104,9 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def wait_until_ready(base_url: str, process: subprocess.Popen[bytes], log: Path) -> None:
+def wait_until_ready(
+    base_url: str, process: subprocess.Popen[bytes], log: Path
+) -> None:
     deadline = time.monotonic() + SERVER_START_TIMEOUT
     while time.monotonic() < deadline:
         if process.poll() is not None:
@@ -139,7 +139,9 @@ def database() -> Iterator[None]:
 
 
 @pytest.fixture
-def live_server(database: None, upload_dir: Path, tmp_path: Path) -> Iterator[LiveServer]:
+def live_server(
+    database: None, upload_dir: Path, tmp_path: Path
+) -> Iterator[LiveServer]:
     """Real uvicorn server using the test database and the temporary upload dir."""
     port = free_port()
     environment = os.environ | {
@@ -150,8 +152,14 @@ def live_server(database: None, upload_dir: Path, tmp_path: Path) -> Iterator[Li
     with log_path.open("w") as log:
         process = subprocess.Popen(
             [
-                sys.executable, "-m", "uvicorn", "app.main:app",
-                "--host", "127.0.0.1", "--port", str(port),
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
             ],
             cwd=PROJECT_ROOT,
             env=environment,

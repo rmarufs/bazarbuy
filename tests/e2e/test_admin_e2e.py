@@ -24,7 +24,9 @@ def make_photo(directory: Path) -> str:
     return str(path)
 
 
-def add_product(page: Page, server: LiveServer, name: str, price: int, photo: str) -> None:
+def add_product(
+    page: Page, server: LiveServer, name: str, price: int, photo: str
+) -> None:
     page.goto(server.url("/admin/products/new"))
     page.fill("#name", name)
     page.select_option("#category_id", label=CATEGORY_NAME)

@@ -9,6 +9,7 @@ from collections.abc import Awaitable, Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -21,6 +22,7 @@ from app.core.database import Base
 from app.services import (
     auth_service,
     category_service,
+    image_service,
     product_service,
     setting_service,
 )
@@ -51,6 +53,24 @@ def make_image(image_format: str = "JPEG", color: str = "red") -> bytes:
     buffer = io.BytesIO()
     Image.new("RGB", (40, 30), color).save(buffer, format=image_format)
     return buffer.getvalue()
+
+
+def _install_fake_uploads(upload_dir: Path, base_url: str) -> None:
+    """Mock Cloudinary upload/delete to serve uploaded files from `upload_dir`."""
+
+    async def fake_upload(file: Any) -> str:
+        limit = image_service.MAX_IMAGE_BYTES + 1
+        data = file if isinstance(file, bytes) else await file.read(limit)
+        ext = image_service.detect_extension(data)
+        name = f"{uuid4().hex}.{ext}"
+        (upload_dir / name).write_bytes(data)
+        return f"{base_url}/test-uploads/{name}"
+
+    async def fake_delete(url: str) -> None:
+        return None
+
+    image_service.upload_image = fake_upload  # type: ignore[assignment]
+    image_service.delete_image = fake_delete  # type: ignore[assignment]
 
 
 def run_async[T](coroutine_factory: Callable[[], Awaitable[T]]) -> T:
@@ -142,26 +162,36 @@ def database() -> Iterator[None]:
 def live_server(database: None, tmp_path: Path) -> Iterator[LiveServer]:
     """Real uvicorn server using the test database and mocked Cloudinary."""
     port = free_port()
+    upload_dir = tmp_path / "uploads"
+    upload_dir.mkdir()
     environment = os.environ | {
         "DATABASE_URL": get_test_database_url(),
+        "PYTHONPATH": str(PROJECT_ROOT),
     }
     runner_script = tmp_path / "run_e2e_server.py"
     runner_script.write_text(
+        "from pathlib import Path\n"
         "from uuid import uuid4\n"
         "import uvicorn\n"
         "from fastapi import UploadFile\n"
+        "from fastapi.staticfiles import StaticFiles\n"
+        "from app.main import app\n"
         "from app.services import image_service\n"
-        "BASE = 'https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products'\n"
+        f"UPLOAD_DIR = Path({str(upload_dir)!r})\n"
+        "app.mount('/test-uploads', StaticFiles(directory=UPLOAD_DIR))\n"
+        f"BASE = 'http://127.0.0.1:{port}/test-uploads'\n"
         "async def _fake_upload(file: UploadFile | bytes) -> str:\n"
         "    limit = image_service.MAX_IMAGE_BYTES + 1\n"
         "    data = file if isinstance(file, bytes) else await file.read(limit)\n"
         "    ext = image_service.detect_extension(data)\n"
-        "    return f'{BASE}/{uuid4().hex}.{ext}'\n"
+        "    name = f'{uuid4().hex}.{ext}'\n"
+        "    (UPLOAD_DIR / name).write_bytes(data)\n"
+        "    return f'{BASE}/{name}'\n"
         "async def _fake_delete(url: str) -> None:\n"
         "    return None\n"
         "image_service.upload_image = _fake_upload\n"
         "image_service.delete_image = _fake_delete\n"
-        f"uvicorn.run('app.main:app', host='127.0.0.1', port={port})\n"
+        f"uvicorn.run(app, host='127.0.0.1', port={port})\n"
     )
     log_path = tmp_path / "server.log"
     with log_path.open("w") as log:
@@ -173,6 +203,7 @@ def live_server(database: None, tmp_path: Path) -> Iterator[LiveServer]:
             stderr=subprocess.STDOUT,
         )
         base_url = f"http://127.0.0.1:{port}"
+        _install_fake_uploads(upload_dir, base_url)
         try:
             wait_until_ready(base_url, process, log_path)
             yield LiveServer(base_url)

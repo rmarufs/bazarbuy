@@ -1,3 +1,6 @@
+import asyncio
+from typing import cast
+
 import pytest
 from httpx import AsyncClient, Response
 from pydantic import ValidationError
@@ -13,6 +16,7 @@ from app.services.auth_service import (
     LOGIN_WINDOW_SECONDS,
     MAX_LOGIN_ATTEMPTS,
     LoginRateLimiter,
+    TooManyLoginAttemptsError,
 )
 
 USERNAME = "owner"
@@ -157,29 +161,78 @@ def test_login_rate_limiter_blocks_unblocks_and_resets() -> None:
     limiter = LoginRateLimiter(clock=lambda: now)
 
     for _ in range(MAX_LOGIN_ATTEMPTS - 1):
-        limiter.record_failure("10.0.0.1")
-        assert limiter.is_blocked("10.0.0.1") is False
+        limiter.check_and_register("10.0.0.1")
 
-    # Successful login resets accumulated failures.
+    # Successful login resets accumulated attempts.
     limiter.reset("10.0.0.1")
     for _ in range(MAX_LOGIN_ATTEMPTS - 1):
-        limiter.record_failure("10.0.0.1")
-    assert limiter.is_blocked("10.0.0.1") is False
+        limiter.check_and_register("10.0.0.1")
 
-    # 5th failure within the window triggers the 15-minute block.
-    limiter.record_failure("10.0.0.1")
-    assert limiter.is_blocked("10.0.0.1") is True
-    assert limiter.is_blocked("10.0.0.2") is False
+    # 5th attempt in the window is allowed and sets the 15-minute block.
+    limiter.check_and_register("10.0.0.1")
+    with pytest.raises(TooManyLoginAttemptsError):
+        limiter.check_and_register("10.0.0.1")
+    limiter.check_and_register("10.0.0.2")
+    limiter.reset("10.0.0.2")
 
     # Still blocked just before block_seconds elapses.
     now += LOGIN_BLOCK_SECONDS - 1
-    assert limiter.is_blocked("10.0.0.1") is True
+    with pytest.raises(TooManyLoginAttemptsError):
+        limiter.check_and_register("10.0.0.1")
 
     # Unblocked once block_seconds elapses, and expired entries are pruned.
-    limiter.record_failure("10.0.0.3")
+    limiter.check_and_register("10.0.0.3")
     now += LOGIN_WINDOW_SECONDS + 1
-    assert limiter.is_blocked("10.0.0.1") is False
+    limiter.reset("10.0.0.1")
     assert limiter._records == {}
+    limiter.check_and_register("10.0.0.1")
+
+
+def test_login_rate_limiter_twenty_calls_allow_only_five() -> None:
+    limiter = LoginRateLimiter()
+    allowed = 0
+    blocked = 0
+
+    for _ in range(20):
+        try:
+            limiter.check_and_register("10.0.0.1")
+            allowed += 1
+        except TooManyLoginAttemptsError:
+            blocked += 1
+
+    assert allowed == MAX_LOGIN_ATTEMPTS
+    assert blocked == 20 - MAX_LOGIN_ATTEMPTS
+
+
+async def test_login_admin_concurrency_allows_only_five_authentications(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth_calls = 0
+
+    async def slow_authenticate(
+        session: AsyncSession, username: str, password: str
+    ) -> Admin | None:
+        nonlocal auth_calls
+        auth_calls += 1
+        await asyncio.sleep(0)
+        return None
+
+    monkeypatch.setattr(auth_service, "authenticate", slow_authenticate)
+    dummy_session = cast(AsyncSession, object())
+
+    results = await asyncio.gather(
+        *(
+            auth_service.login_admin(dummy_session, USERNAME, "wrong", "10.0.0.1")
+            for _ in range(20)
+        ),
+        return_exceptions=True,
+    )
+
+    assert auth_calls == MAX_LOGIN_ATTEMPTS
+    assert sum(r is None for r in results) == MAX_LOGIN_ATTEMPTS
+    assert sum(isinstance(r, TooManyLoginAttemptsError) for r in results) == (
+        20 - MAX_LOGIN_ATTEMPTS
+    )
 
 
 async def test_login_blocks_after_five_failed_attempts_even_with_valid_password(

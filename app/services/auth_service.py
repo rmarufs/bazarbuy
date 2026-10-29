@@ -1,3 +1,4 @@
+import asyncio
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -26,7 +27,7 @@ class TooManyLoginAttemptsError(Exception):
 
 @dataclass
 class _AttemptRecord:
-    failures: list[float] = field(default_factory=list)
+    attempts: list[float] = field(default_factory=list)
     blocked_until: float | None = None
 
 
@@ -52,28 +53,23 @@ class LoginRateLimiter:
         for key, record in self._records.items():
             if record.blocked_until is not None and now >= record.blocked_until:
                 record.blocked_until = None
-            record.failures = [ts for ts in record.failures if ts > cutoff]
-            if record.blocked_until is None and not record.failures:
+            record.attempts = [ts for ts in record.attempts if ts > cutoff]
+            if record.blocked_until is None and not record.attempts:
                 expired_keys.append(key)
         for key in expired_keys:
             del self._records[key]
 
-    def is_blocked(self, key: str) -> bool:
-        now = self._clock()
-        self._prune(now)
-        record = self._records.get(key)
-        return record is not None and record.blocked_until is not None
-
-    def record_failure(self, key: str) -> None:
+    def check_and_register(self, key: str) -> None:
+        """Raise TooManyLoginAttemptsError if blocked, otherwise record the attempt."""
         now = self._clock()
         self._prune(now)
         record = self._records.setdefault(key, _AttemptRecord())
         if record.blocked_until is not None:
-            return
-        record.failures.append(now)
-        if len(record.failures) >= self._max_attempts:
+            raise TooManyLoginAttemptsError()
+        record.attempts.append(now)
+        if len(record.attempts) >= self._max_attempts:
             record.blocked_until = now + self._block_seconds
-            record.failures.clear()
+            record.attempts.clear()
 
     def reset(self, key: str) -> None:
         now = self._clock()
@@ -98,9 +94,9 @@ async def authenticate(
     """Return the admin if the credentials are correct, otherwise None."""
     admin = await get_admin_by_username(session, username)
     if admin is None:
-        verify_password(password, _DUMMY_PASSWORD_HASH)
+        await asyncio.to_thread(verify_password, password, _DUMMY_PASSWORD_HASH)
         return None
-    if not verify_password(password, admin.password_hash):
+    if not await asyncio.to_thread(verify_password, password, admin.password_hash):
         return None
     return admin
 
@@ -114,13 +110,10 @@ async def login_admin(
 ) -> Admin | None:
     """Authenticate an admin while enforcing per-IP login rate limits."""
     active_limiter = limiter if limiter is not None else login_rate_limiter
-    if active_limiter.is_blocked(client_ip):
-        raise TooManyLoginAttemptsError()
+    active_limiter.check_and_register(client_ip)
     admin = await authenticate(session, username, password)
-    if admin is None:
-        active_limiter.record_failure(client_ip)
-        return None
-    active_limiter.reset(client_ip)
+    if admin is not None:
+        active_limiter.reset(client_ip)
     return admin
 
 

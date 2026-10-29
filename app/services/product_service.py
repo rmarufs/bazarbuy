@@ -150,9 +150,7 @@ async def get_cart_items(
             id=product.id,
             name=product.name,
             price=product.price,
-            image_url=(
-                f"/uploads/{product.images[0].file_path}" if product.images else ""
-            ),
+            image_url=product.images[0].file_path if product.images else "",
             url=f"/products/{product.id}",
         )
         for product in products

@@ -38,7 +38,7 @@
     </div>
     <div class="product-thumb">
       {% if product.images %}
-      <img src="/uploads/{{ product.images[0].file_path }}" alt="" width="72" height="72" loading="lazy">
+      <img src="{{ product.images[0].file_path }}" alt="" width="72" height="72" loading="lazy">
       {% else %}
       {{ icon("image", 28) }}
       {% endif %}

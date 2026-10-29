@@ -1,11 +1,13 @@
 import io
-from pathlib import Path
+from unittest.mock import MagicMock
 
+import pytest
 from httpx import AsyncClient, Response
 from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models import Category, Product, ProductImage
 from app.services import image_service, product_service
 
@@ -24,10 +26,6 @@ def make_image(image_format: str = "JPEG", color: str = "red") -> bytes:
 
 def photo(index: int, color: str = "red") -> FileField:
     return ("photos", (f"photo{index}.jpg", make_image("JPEG", color), "image/jpeg"))
-
-
-def uploaded_files(directory: Path) -> set[str]:
-    return {path.name for path in directory.iterdir()}
 
 
 async def add_category(session: AsyncSession, name: str = "Сумки") -> Category:
@@ -114,7 +112,9 @@ async def test_new_page_lists_categories(
 
 
 async def test_create_product_with_two_images(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     files = [
@@ -132,15 +132,16 @@ async def test_create_product_with_two_images(
     assert product.price == 250
     assert product.category.name == "Сумки"
     assert [image.position for image in product.images] == [0, 1]
-    paths = [image.file_path for image in product.images]
-    assert paths[0].endswith(".jpg") and paths[1].endswith(".png")
-    assert uploaded_files(upload_dir) == set(paths)
+    urls = [image.file_path for image in product.images]
+    assert urls[0].startswith("https://") and urls[0].endswith(".jpg")
+    assert urls[1].startswith("https://") and urls[1].endswith(".png")
+    assert cloudinary_storage == set(urls)
 
     page = await admin_client.get("/admin/products")
     assert "Louis Vuitton" in page.text
     assert "250 сомони" in page.text
     assert "Сумки" in page.text
-    assert f"/uploads/{paths[0]}" in page.text
+    assert f'src="{urls[0]}"' in page.text
 
 
 async def test_create_product_without_images(
@@ -170,7 +171,9 @@ async def test_new_product_goes_first(
 
 
 async def test_more_than_five_images_is_rejected(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
 
@@ -183,11 +186,13 @@ async def test_more_than_five_images_is_rejected(
     assert response.status_code == 400
     assert TOO_MANY_MESSAGE in response.text
     assert await count_rows(db_session, Product) == 0
-    assert uploaded_files(upload_dir) == set()
+    assert cloudinary_storage == set()
 
 
 async def test_fake_image_is_rejected(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     fake = ("photos", ("script.jpg", b"print('not an image')", "image/jpeg"))
@@ -201,7 +206,7 @@ async def test_fake_image_is_rejected(
     assert response.status_code == 400
     assert INVALID_IMAGE_MESSAGE in response.text
     assert await count_rows(db_session, Product) == 0
-    assert uploaded_files(upload_dir) == set()
+    assert cloudinary_storage == set()
 
 
 async def test_unsupported_image_format_is_rejected(
@@ -300,14 +305,16 @@ async def test_edit_page_shows_photos_with_remove_checkboxes(
 
 
 async def test_edit_product_replaces_and_adds_images(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     other = await add_category(db_session, "Обувь")
     await create_via_post(admin_client, category, [photo(1, "red"), photo(2, "blue")])
     product = await only_product(db_session)
     first, second = product.images
-    old_files = uploaded_files(upload_dir)
+    old_urls = set(cloudinary_storage)
 
     response = await admin_client.post(
         f"/admin/products/{product.id}/edit",
@@ -328,20 +335,22 @@ async def test_edit_product_replaces_and_adds_images(
     assert len(updated.images) == 2
     assert updated.images[0].id == second.id
     assert [image.position for image in updated.images] == [0, 1]
-    new_path = updated.images[1].file_path
-    assert new_path not in old_files
-    assert uploaded_files(upload_dir) == {second.file_path, new_path}
-    assert first.file_path not in uploaded_files(upload_dir)
+    new_url = updated.images[1].file_path
+    assert new_url not in old_urls
+    assert cloudinary_storage == {second.file_path, new_url}
+    assert first.file_path not in cloudinary_storage
     assert await count_rows(db_session, ProductImage) == 2
 
 
 async def test_edit_cannot_exceed_five_images(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     await create_via_post(admin_client, category, [photo(1), photo(2)])
     product = await only_product(db_session)
-    before = uploaded_files(upload_dir)
+    before = set(cloudinary_storage)
 
     response = await admin_client.post(
         f"/admin/products/{product.id}/edit",
@@ -352,7 +361,7 @@ async def test_edit_cannot_exceed_five_images(
     assert response.status_code == 400
     assert TOO_MANY_MESSAGE in response.text
     assert (await only_product(db_session)).name == "Louis Vuitton"
-    assert uploaded_files(upload_dir) == before
+    assert cloudinary_storage == before
 
 
 async def test_edit_allows_five_after_removing(
@@ -389,12 +398,14 @@ async def test_edit_unknown_product_returns_404(admin_client: AsyncClient) -> No
 
 
 async def test_delete_product_removes_record_and_files(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     await create_via_post(admin_client, category, [photo(1), photo(2)])
     product = await only_product(db_session)
-    assert len(uploaded_files(upload_dir)) == 2
+    assert len(cloudinary_storage) == 2
 
     response = await admin_client.post(
         f"/admin/products/{product.id}/delete", follow_redirects=False
@@ -404,17 +415,31 @@ async def test_delete_product_removes_record_and_files(
     assert response.headers["location"] == "/admin/products"
     assert await count_rows(db_session, Product) == 0
     assert await count_rows(db_session, ProductImage) == 0
-    assert uploaded_files(upload_dir) == set()
+    assert cloudinary_storage == set()
 
 
-async def test_delete_ignores_files_missing_on_disk(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+async def test_delete_ignores_cloudinary_errors(
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     category = await add_category(db_session)
     await create_via_post(admin_client, category, [photo(1)])
     product = await only_product(db_session)
-    for path in upload_dir.iterdir():
-        path.unlink()
+    url = product.images[0].file_path
+
+    destroy_mock = MagicMock(side_effect=RuntimeError("Cloudinary is down"))
+    monkeypatch.setattr(image_service.cloudinary.uploader, "destroy", destroy_mock)
+    monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", "demo")
+    monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", "key")
+    monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", "secret")
+    monkeypatch.setattr(
+        image_service,
+        "delete_image",
+        lambda u: image_service.asyncio.to_thread(
+            image_service._delete_image_sync, u
+        ),
+    )
 
     response = await admin_client.post(
         f"/admin/products/{product.id}/delete", follow_redirects=False
@@ -422,6 +447,23 @@ async def test_delete_ignores_files_missing_on_disk(
 
     assert response.status_code == 303
     assert await count_rows(db_session, Product) == 0
+    expected_public_id = image_service.extract_public_id(url)
+    assert expected_public_id is not None and expected_public_id.startswith(
+        "bazarbuy/products/"
+    )
+    destroy_mock.assert_called_once_with(expected_public_id, resource_type="image")
+
+
+async def test_cloudinary_upload_requires_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "CLOUDINARY_CLOUD_NAME", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_KEY", None)
+    monkeypatch.setattr(settings, "CLOUDINARY_API_SECRET", None)
+    with pytest.raises(
+        image_service.ImageError, match=image_service.MISSING_CONFIG_MESSAGE[:20]
+    ):
+        image_service._upload_image_sync(make_image("JPEG"))
 
 
 async def create_three(
@@ -441,12 +483,14 @@ async def post_reorder(client: AsyncClient, ordered_ids: object) -> Response:
 
 
 async def test_bulk_delete_removes_selected_products_and_files(
-    admin_client: AsyncClient, db_session: AsyncSession, upload_dir: Path
+    admin_client: AsyncClient,
+    db_session: AsyncSession,
+    cloudinary_storage: set[str],
 ) -> None:
     category = await add_category(db_session)
     p1, p2, p3 = await create_three(admin_client, db_session, category)
-    keep_files = {image.file_path for image in p1.images}
-    assert len(uploaded_files(upload_dir)) == 3
+    keep_urls = {image.file_path for image in p1.images}
+    assert len(cloudinary_storage) == 3
 
     response = await admin_client.post(
         "/admin/products/bulk-delete",
@@ -459,7 +503,7 @@ async def test_bulk_delete_removes_selected_products_and_files(
     remaining = await product_service.list_products(db_session)
     assert [product.id for product in remaining] == [p1.id]
     assert await count_rows(db_session, ProductImage) == 1
-    assert uploaded_files(upload_dir) == keep_files
+    assert cloudinary_storage == keep_urls
 
 
 async def test_bulk_delete_with_empty_list_does_nothing(

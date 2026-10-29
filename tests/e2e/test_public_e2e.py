@@ -74,7 +74,7 @@ def test_product_detail_and_photo_gallery(
     expect(main_image).to_have_attribute("src", first_href)
 
     thumbs.nth(1).click()
-    expect(main_image).to_have_attribute("src", live_server.url(second_href))
+    expect(main_image).to_have_attribute("src", second_href)
     expect(thumbs.nth(1)).to_have_class("thumb is-active")
     save_screenshot(page, "06_product_detail.png")
 

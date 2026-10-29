@@ -1,8 +1,9 @@
 from collections.abc import AsyncIterator, Iterator
-from pathlib import Path
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from fastapi import UploadFile
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -10,16 +11,35 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
-from app.services import auth_service
+from app.services import auth_service, image_service
+
+FAKE_CLOUDINARY_BASE = (
+    "https://res.cloudinary.com/test-cloud/image/upload/v1/bazarbuy/products"
+)
 
 
 @pytest.fixture(autouse=True)
-def upload_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Point UPLOAD_DIR to a temporary folder so tests never touch real uploads."""
-    directory = tmp_path / "uploads"
-    directory.mkdir()
-    monkeypatch.setattr(settings, "UPLOAD_DIR", str(directory))
-    return directory
+def cloudinary_storage(monkeypatch: pytest.MonkeyPatch) -> set[str]:
+    """Mock Cloudinary upload/delete so tests never hit the network."""
+    stored_urls: set[str] = set()
+
+    async def fake_upload_image(file: UploadFile | bytes) -> str:
+        data = (
+            file
+            if isinstance(file, bytes)
+            else await file.read(image_service.MAX_IMAGE_BYTES + 1)
+        )
+        extension = image_service.detect_extension(data)
+        url = f"{FAKE_CLOUDINARY_BASE}/{uuid4().hex}.{extension}"
+        stored_urls.add(url)
+        return url
+
+    async def fake_delete_image(url: str) -> None:
+        stored_urls.discard(url)
+
+    monkeypatch.setattr(image_service, "upload_image", fake_upload_image)
+    monkeypatch.setattr(image_service, "delete_image", fake_delete_image)
+    return stored_urls
 
 
 @pytest.fixture(autouse=True)

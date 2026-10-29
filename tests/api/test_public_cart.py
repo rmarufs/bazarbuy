@@ -76,12 +76,14 @@ async def test_api_cart_items_returns_existing_products_and_ignores_missing(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session, "Сумки")
+    bag1_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag1.jpg"
+    bag2_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag2.jpg"
     first = await add_product(
         db_session,
         category,
         "Сумка кожаная",
         price=350,
-        images=("bag1.jpg", "bag2.jpg"),
+        images=(bag1_url, bag2_url),
     )
     second = await add_product(
         db_session,
@@ -108,7 +110,7 @@ async def test_api_cart_items_returns_existing_products_and_ignores_missing(
             "id": first.id,
             "name": "Сумка кожаная",
             "price": 350,
-            "image_url": "/uploads/bag1.jpg",
+            "image_url": bag1_url,
             "url": f"/products/{first.id}",
         },
     ]

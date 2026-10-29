@@ -13,8 +13,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     TEST_DATABASE_URL: str | None = None
     SECRET_KEY: str
-    UPLOAD_DIR: str = "uploads"
     APP_ENV: str = "development"
+    CLOUDINARY_CLOUD_NAME: str | None = None
+    CLOUDINARY_API_KEY: str | None = None
+    CLOUDINARY_API_SECRET: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

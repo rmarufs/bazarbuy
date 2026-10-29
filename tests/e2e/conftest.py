@@ -139,28 +139,34 @@ def database() -> Iterator[None]:
 
 
 @pytest.fixture
-def live_server(
-    database: None, upload_dir: Path, tmp_path: Path
-) -> Iterator[LiveServer]:
-    """Real uvicorn server using the test database and the temporary upload dir."""
+def live_server(database: None, tmp_path: Path) -> Iterator[LiveServer]:
+    """Real uvicorn server using the test database and mocked Cloudinary."""
     port = free_port()
     environment = os.environ | {
         "DATABASE_URL": get_test_database_url(),
-        "UPLOAD_DIR": str(upload_dir),
     }
+    runner_script = tmp_path / "run_e2e_server.py"
+    runner_script.write_text(
+        "from uuid import uuid4\n"
+        "import uvicorn\n"
+        "from fastapi import UploadFile\n"
+        "from app.services import image_service\n"
+        "BASE = 'https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products'\n"
+        "async def _fake_upload(file: UploadFile | bytes) -> str:\n"
+        "    limit = image_service.MAX_IMAGE_BYTES + 1\n"
+        "    data = file if isinstance(file, bytes) else await file.read(limit)\n"
+        "    ext = image_service.detect_extension(data)\n"
+        "    return f'{BASE}/{uuid4().hex}.{ext}'\n"
+        "async def _fake_delete(url: str) -> None:\n"
+        "    return None\n"
+        "image_service.upload_image = _fake_upload\n"
+        "image_service.delete_image = _fake_delete\n"
+        f"uvicorn.run('app.main:app', host='127.0.0.1', port={port})\n"
+    )
     log_path = tmp_path / "server.log"
     with log_path.open("w") as log:
         process = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "uvicorn",
-                "app.main:app",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                str(port),
-            ],
+            [sys.executable, str(runner_script)],
             cwd=PROJECT_ROOT,
             env=environment,
             stdout=log,

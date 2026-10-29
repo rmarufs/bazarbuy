@@ -1,7 +1,7 @@
 {% extends "public/base.html" %}
 {% from "admin/_icons.html" import icon %}
 {% set active_nav = "catalog" %}
-{% set image = "/uploads/" ~ product.images[0].file_path if product.images else "" %}
+{% set image = product.images[0].file_path if product.images else "" %}
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
 <a class="back-link" href="/">
@@ -21,9 +21,9 @@
     <ul class="thumbs" aria-label="Фотографии товара">
       {% for item in product.images %}
       <li>
-        <a class="thumb{% if loop.first %} is-active{% endif %}" href="/uploads/{{ item.file_path }}"
+        <a class="thumb{% if loop.first %} is-active{% endif %}" href="{{ item.file_path }}"
            data-gallery-thumb aria-label="Фото {{ loop.index }}"{% if loop.first %} aria-current="true"{% endif %}>
-          <img src="/uploads/{{ item.file_path }}" alt="" loading="lazy">
+          <img src="{{ item.file_path }}" alt="" loading="lazy">
         </a>
       </li>
       {% endfor %}

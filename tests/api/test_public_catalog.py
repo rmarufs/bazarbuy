@@ -67,15 +67,17 @@ async def test_catalog_card_shows_first_photo_and_cart_data(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session, "Сумки")
+    first_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/first.jpg"
+    second_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/second.jpg"
     product = await add_product(
-        db_session, category, "Сумка", images=("first.jpg", "second.jpg")
+        db_session, category, "Сумка", images=(first_url, second_url)
     )
 
     page = (await client.get("/")).text
 
-    assert 'src="/uploads/first.jpg"' in page
+    assert f'src="{first_url}"' in page
     assert "second.jpg" not in page
-    assert 'data-product-image="/uploads/first.jpg"' in page
+    assert f'data-product-image="{first_url}"' in page
     assert f'data-product-id="{product.id}"' in page
     assert f'href="/products/{product.id}"' in page
 
@@ -189,7 +191,10 @@ async def test_product_page_shows_details_and_all_photos(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session, "Сумки")
-    photos = tuple(f"photo{index}.jpg" for index in range(5))
+    photos = tuple(
+        f"https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/photo{index}.jpg"
+        for index in range(5)
+    )
     product = await add_product(
         db_session,
         category,
@@ -212,9 +217,9 @@ async def test_product_page_shows_details_and_all_photos(
     assert "Сумки" in page
     assert "Назад в каталог" in page
     for photo in photos:
-        assert page.count(f"/uploads/{photo}") >= 1
+        assert page.count(photo) >= 1
     assert page.count("data-gallery-thumb") == 5
-    assert 'id="gallery-main-image" src="/uploads/photo0.jpg"' in page
+    assert f'id="gallery-main-image" src="{photos[0]}"' in page
     assert f'data-product-id="{product.id}"' in page
     assert "/static/js/public_product.js" in page
     assert (await client.get("/static/js/public_product.js")).status_code == 200

@@ -46,7 +46,7 @@
     <div class="photo-grid">
       {% for image in product.images %}
       <div class="photo-tile">
-        <img src="/uploads/{{ image.file_path }}" alt="Фото {{ loop.index }}" loading="lazy">
+        <img src="{{ image.file_path }}" alt="Фото {{ loop.index }}" loading="lazy">
         {% if loop.first %}<span class="badge photo-main">Главное</span>{% endif %}
         <label class="photo-remove">
           <input type="checkbox" name="remove_image_ids" value="{{ image.id }}">

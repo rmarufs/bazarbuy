@@ -14,10 +14,18 @@ from app.core.security import (
 )
 from app.core.templating import templates
 from app.services import auth_service
+from app.services.auth_service import TooManyLoginAttemptsError
 
 router = APIRouter(prefix="/admin")
 
 PRODUCTS_URL = "/admin/products"
+
+
+def _get_client_ip(request: Request) -> str:
+    # X-Forwarded-For is intentionally ignored: without a trusted reverse proxy
+    # overwriting client headers, an attacker could spoof X-Forwarded-For on every
+    # request and bypass per-IP rate limiting.
+    return request.client.host if request.client else "unknown"
 
 
 @router.get("")
@@ -39,7 +47,17 @@ async def login(
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
 ) -> Response:
-    admin = await auth_service.authenticate(db, username, password)
+    try:
+        admin = await auth_service.login_admin(
+            db, username, password, _get_client_ip(request)
+        )
+    except TooManyLoginAttemptsError as error:
+        return templates.TemplateResponse(
+            request,
+            "admin/login.html",
+            {"error": str(error), "username": username},
+            status_code=429,
+        )
     if admin is None:
         return templates.TemplateResponse(
             request,

@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 
 import pytest
@@ -20,6 +20,14 @@ def upload_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory.mkdir()
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(directory))
     return directory
+
+
+@pytest.fixture(autouse=True)
+def reset_login_limiter() -> Iterator[None]:
+    """Reset the in-memory login rate limiter around every test."""
+    auth_service.login_rate_limiter.clear()
+    yield
+    auth_service.login_rate_limiter.clear()
 
 
 def get_test_database_url() -> str:

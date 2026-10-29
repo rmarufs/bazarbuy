@@ -1,10 +1,19 @@
+import pytest
 from httpx import AsyncClient, Response
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import PLACEHOLDER_SECRET_KEY, Settings
 from app.core.security import SESSION_COOKIE_NAME, hash_password, verify_password
 from app.models import Admin, Setting
 from app.services import auth_service
+from app.services.auth_service import (
+    LOGIN_BLOCK_SECONDS,
+    LOGIN_WINDOW_SECONDS,
+    MAX_LOGIN_ATTEMPTS,
+    LoginRateLimiter,
+)
 
 USERNAME = "owner"
 PASSWORD = "secret-pass"
@@ -141,3 +150,104 @@ def test_verify_password_accepts_existing_passlib_hash() -> None:
     passlib_hash = "$2b$12$z9j44sGVkd5HsJ5Gj3PIAeOFhZg5gO5LbkudbHuZ61z3OQl9gX3Fq"
     assert verify_password("secret-pass", passlib_hash) is True
     assert verify_password("wrong-pass", passlib_hash) is False
+
+
+def test_login_rate_limiter_blocks_unblocks_and_resets() -> None:
+    now = 1000.0
+    limiter = LoginRateLimiter(clock=lambda: now)
+
+    for _ in range(MAX_LOGIN_ATTEMPTS - 1):
+        limiter.record_failure("10.0.0.1")
+        assert limiter.is_blocked("10.0.0.1") is False
+
+    # Successful login resets accumulated failures.
+    limiter.reset("10.0.0.1")
+    for _ in range(MAX_LOGIN_ATTEMPTS - 1):
+        limiter.record_failure("10.0.0.1")
+    assert limiter.is_blocked("10.0.0.1") is False
+
+    # 5th failure within the window triggers the 15-minute block.
+    limiter.record_failure("10.0.0.1")
+    assert limiter.is_blocked("10.0.0.1") is True
+    assert limiter.is_blocked("10.0.0.2") is False
+
+    # Still blocked just before block_seconds elapses.
+    now += LOGIN_BLOCK_SECONDS - 1
+    assert limiter.is_blocked("10.0.0.1") is True
+
+    # Unblocked once block_seconds elapses, and expired entries are pruned.
+    limiter.record_failure("10.0.0.3")
+    now += LOGIN_WINDOW_SECONDS + 1
+    assert limiter.is_blocked("10.0.0.1") is False
+    assert limiter._records == {}
+
+
+async def test_login_blocks_after_five_failed_attempts_even_with_valid_password(
+    client: AsyncClient, db_session: AsyncSession
+) -> None:
+    await auth_service.upsert_admin(db_session, USERNAME, PASSWORD)
+
+    for _ in range(MAX_LOGIN_ATTEMPTS):
+        wrong = await login(client, "wrong-password")
+        assert wrong.status_code == 401
+
+    blocked = await login(client, PASSWORD)
+    assert blocked.status_code == 429
+    assert "Слишком много попыток входа. Попробуйте позже." in blocked.text
+    assert SESSION_COOKIE_NAME not in blocked.headers.get("set-cookie", "")
+
+
+async def test_authenticate_unknown_username_still_verifies_password(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls: list[tuple[str, str]] = []
+    real_verify = auth_service.verify_password
+
+    def spy_verify(password: str, password_hash: str) -> bool:
+        calls.append((password, password_hash))
+        return real_verify(password, password_hash)
+
+    monkeypatch.setattr(auth_service, "verify_password", spy_verify)
+
+    result = await auth_service.authenticate(db_session, "unknown-admin", "some-pass")
+
+    assert result is None
+    assert len(calls) == 1
+    assert calls[0][0] == "some-pass"
+    assert calls[0][1].startswith("$2b$")
+
+
+def test_settings_rejects_weak_or_placeholder_secret_key_in_production() -> None:
+    db_url = "postgresql+asyncpg://u:p@localhost:5432/db"
+
+    with pytest.raises(ValidationError, match="placeholder"):
+        Settings(
+            _env_file=None,
+            DATABASE_URL=db_url,
+            SECRET_KEY=PLACEHOLDER_SECRET_KEY,
+            APP_ENV="production",
+        )
+
+    with pytest.raises(ValidationError, match="at least 32 characters"):
+        Settings(
+            _env_file=None,
+            DATABASE_URL=db_url,
+            SECRET_KEY="short-secret-key",
+            APP_ENV="production",
+        )
+
+    prod = Settings(
+        _env_file=None,
+        DATABASE_URL=db_url,
+        SECRET_KEY="s" * 32,
+        APP_ENV="production",
+    )
+    assert prod.APP_ENV == "production"
+
+    dev = Settings(
+        _env_file=None,
+        DATABASE_URL=db_url,
+        SECRET_KEY=PLACEHOLDER_SECRET_KEY,
+        APP_ENV="development",
+    )
+    assert dev.APP_ENV == "development"

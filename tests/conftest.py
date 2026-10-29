@@ -22,6 +22,17 @@ def upload_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return directory
 
 
+def get_test_database_url() -> str:
+    """Validate and return the test database URL, or skip if not configured."""
+    url = settings.TEST_DATABASE_URL
+    if not url:
+        pytest.skip("TEST_DATABASE_URL is not set; set it in .env to run DB tests")
+    assert url != settings.DATABASE_URL, (
+        "TEST_DATABASE_URL must differ from DATABASE_URL"
+    )
+    return url
+
+
 @pytest_asyncio.fixture
 async def db_session() -> AsyncIterator[AsyncSession]:
     """Async session bound to the test database.
@@ -29,10 +40,7 @@ async def db_session() -> AsyncIterator[AsyncSession]:
     Tables are created before each test and dropped after it,
     so every test starts with an empty schema.
     """
-    assert settings.TEST_DATABASE_URL != settings.DATABASE_URL, (
-        "TEST_DATABASE_URL must differ from DATABASE_URL"
-    )
-    engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
+    engine = create_async_engine(get_test_database_url(), poolclass=NullPool)
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.drop_all)
         await connection.run_sync(Base.metadata.create_all)

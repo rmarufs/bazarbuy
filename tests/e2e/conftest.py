@@ -17,7 +17,6 @@ from playwright.sync_api import Page
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.core.config import settings
 from app.core.database import Base
 from app.services import (
     auth_service,
@@ -25,6 +24,7 @@ from app.services import (
     product_service,
     setting_service,
 )
+from tests.conftest import get_test_database_url
 
 T = TypeVar("T")
 
@@ -73,7 +73,7 @@ def run_with_session(action: Callable[[AsyncSession], Awaitable[T]]) -> T:
     """Run `action` with a session bound to the test database."""
 
     async def factory() -> T:
-        engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
+        engine = create_async_engine(get_test_database_url(), poolclass=NullPool)
         try:
             sessions = async_sessionmaker(engine, expire_on_commit=False)
             async with sessions() as session:
@@ -88,7 +88,7 @@ def reset_schema(create: bool) -> None:
     """Drop all tables of the test database and optionally create them again."""
 
     async def factory() -> None:
-        engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
+        engine = create_async_engine(get_test_database_url(), poolclass=NullPool)
         try:
             async with engine.begin() as connection:
                 await connection.run_sync(Base.metadata.drop_all)
@@ -127,9 +127,7 @@ def browser_context_args(browser_context_args: dict[str, Any]) -> dict[str, Any]
 @pytest.fixture
 def database() -> Iterator[None]:
     """Empty test database with one admin; dropped after the test."""
-    assert settings.TEST_DATABASE_URL != settings.DATABASE_URL, (
-        "TEST_DATABASE_URL must differ from DATABASE_URL"
-    )
+    get_test_database_url()
     reset_schema(create=True)
     run_with_session(
         lambda session: auth_service.upsert_admin(
@@ -145,7 +143,7 @@ def live_server(database: None, upload_dir: Path, tmp_path: Path) -> Iterator[Li
     """Real uvicorn server using the test database and the temporary upload dir."""
     port = free_port()
     environment = os.environ | {
-        "DATABASE_URL": settings.TEST_DATABASE_URL,
+        "DATABASE_URL": get_test_database_url(),
         "UPLOAD_DIR": str(upload_dir),
     }
     log_path = tmp_path / "server.log"

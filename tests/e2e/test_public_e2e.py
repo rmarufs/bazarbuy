@@ -76,6 +76,10 @@ def test_product_detail_and_photo_gallery(
     thumbs.nth(1).click()
     expect(main_image).to_have_attribute("src", second_href)
     expect(thumbs.nth(1)).to_have_class("thumb is-active")
+    gallery_box = page.locator(".gallery-main").bounding_box()
+    image_box = main_image.bounding_box()
+    assert gallery_box is not None and image_box is not None
+    assert abs(gallery_box["height"] - image_box["height"]) <= 2
     save_screenshot(page, "06_product_detail.png")
 
 

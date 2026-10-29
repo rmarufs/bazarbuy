@@ -3,13 +3,13 @@
 Catalog website with WhatsApp preorder (no payments). Read `docs/SPEC.md` before any task: it is the single source of truth for functionality.
 
 ## Stack
-Python, FastAPI, Pydantic, async SQLAlchemy + asyncpg, PostgreSQL, Alembic, Jinja2 templates, plain HTML/CSS/JS (no frontend framework), Pillow for images, pytest + Playwright for tests.
+Python, FastAPI, Pydantic, async SQLAlchemy + asyncpg, PostgreSQL, Alembic, Jinja2 templates, plain HTML/CSS/JS (no frontend framework), Pillow + Cloudinary for images, pytest + Playwright for tests.
 
 ## Structure and layering
 - `app/routers`: only HTTP handling, call services. No business logic here.
 - `app/services`: all business logic.
 - `app/models`: SQLAlchemy tables. `app/schemas`: Pydantic.
-- `app/templates`, `app/static`: UI. `uploads/`: user photos (git-ignored).
+- `app/templates`, `app/static`: UI. Product photos are stored in Cloudinary (see image_service).
 - `tests/api`: pytest. `tests/e2e`: Playwright.
 
 ## Rules

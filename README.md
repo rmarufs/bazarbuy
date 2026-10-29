@@ -37,6 +37,8 @@
 
 ## Установка
 
+Требуется Python 3.12+.
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -53,6 +55,22 @@ cp .env.example .env # затем заполните значения в .env
 - `SECRET_KEY` — секретный ключ для подписи сессионных cookie администратора.
 - `UPLOAD_DIR` — папка для загружаемых фотографий товаров (по умолчанию `uploads`).
 - `APP_ENV` — режим окружения (`development` или `production`; в `production` для сессионной cookie включается флаг `Secure`).
+
+### База данных через Docker (необязательно)
+
+Чтобы не настраивать PostgreSQL локально, обе базы (`bazarbuy` и `bazarbuy_test`) можно поднять одной командой на порту `5433`:
+
+```bash
+docker compose up -d
+```
+
+После запуска раскомментируйте в `.env` строки с портом `5433` из `.env.example` (заменив ими стандартные `DATABASE_URL` и `TEST_DATABASE_URL`).
+
+Остановка контейнера:
+
+```bash
+docker compose down
+```
 
 ## Запуск
 

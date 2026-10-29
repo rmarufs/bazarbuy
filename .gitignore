@@ -10,3 +10,9 @@ test-results/
 playwright-report/
 tests/e2e/screenshots/
 .DS_Store
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.log
+.idea/

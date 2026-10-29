@@ -1,25 +1,33 @@
 from typing import Any
 
+import bcrypt
 from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, URLSafeTimedSerializer
-from passlib.context import CryptContext
 
 from app.core.config import settings
 
 LOGIN_URL = "/admin/login"
 SESSION_COOKIE_NAME = "admin_session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 7  # 7 days, in seconds
+BCRYPT_MAX_PASSWORD_BYTES = 72
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 _serializer = URLSafeTimedSerializer(settings.SECRET_KEY, salt="admin-session")
 
 
+def _password_bytes(password: str) -> bytes:
+    # bcrypt uses at most 72 bytes and newer versions raise ValueError on longer inputs.
+    return password.encode("utf-8")[:BCRYPT_MAX_PASSWORD_BYTES]
+
+
 def hash_password(password: str) -> str:
-    return _pwd_context.hash(password)
+    return bcrypt.hashpw(_password_bytes(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return _pwd_context.verify(password, password_hash)
+    try:
+        return bcrypt.checkpw(_password_bytes(password), password_hash.encode("utf-8"))
+    except ValueError:
+        return False
 
 
 def create_session_token(admin_id: int) -> str:

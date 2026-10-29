@@ -2,7 +2,7 @@ from httpx import AsyncClient, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import SESSION_COOKIE_NAME
+from app.core.security import SESSION_COOKIE_NAME, hash_password, verify_password
 from app.models import Admin, Setting
 from app.services import auth_service
 
@@ -119,3 +119,25 @@ async def test_upsert_admin_creates_then_updates_password(
     assert len(admins) == 1
     assert await auth_service.authenticate(db_session, USERNAME, "first-pass") is None
     assert await auth_service.authenticate(db_session, USERNAME, "second-pass")
+
+
+def test_password_hash_and_verify() -> None:
+    hashed = hash_password(PASSWORD)
+    assert hashed.startswith("$2b$")
+    assert verify_password(PASSWORD, hashed) is True
+    assert verify_password("wrong-pass", hashed) is False
+    assert verify_password(PASSWORD, "not-a-valid-bcrypt-hash") is False
+
+
+def test_password_longer_than_72_bytes_is_truncated() -> None:
+    long_password = "a" * 80
+    hashed = hash_password(long_password)
+    assert verify_password(long_password, hashed) is True
+    assert verify_password("a" * 72 + "b" * 8, hashed) is True
+    assert verify_password("a" * 71 + "b", hashed) is False
+
+
+def test_verify_password_accepts_existing_passlib_hash() -> None:
+    passlib_hash = "$2b$12$z9j44sGVkd5HsJ5Gj3PIAeOFhZg5gO5LbkudbHuZ61z3OQl9gX3Fq"
+    assert verify_password("secret-pass", passlib_hash) is True
+    assert verify_password("wrong-pass", passlib_hash) is False

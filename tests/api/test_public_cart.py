@@ -76,8 +76,12 @@ async def test_api_cart_items_returns_existing_products_and_ignores_missing(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session, "Сумки")
-    bag1_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag1.jpg"
-    bag2_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag2.jpg"
+    bag1_url = (
+        "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag1.jpg"
+    )
+    bag2_url = (
+        "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/bag2.jpg"
+    )
     first = await add_product(
         db_session,
         category,

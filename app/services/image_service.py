@@ -113,9 +113,7 @@ def _upload_image_sync(data: bytes) -> str:
 
 async def upload_image(file: UploadFile | bytes) -> str:
     """Validate and upload a single image to Cloudinary; return its secure HTTPS URL."""
-    data = (
-        file if isinstance(file, bytes) else await file.read(MAX_IMAGE_BYTES + 1)
-    )
+    data = file if isinstance(file, bytes) else await file.read(MAX_IMAGE_BYTES + 1)
     return await asyncio.to_thread(_upload_image_sync, data)
 
 
@@ -127,9 +125,7 @@ def _delete_image_sync(url: str) -> None:
         _configure_cloudinary()
         cloudinary.uploader.destroy(public_id, resource_type="image")
     except Exception:
-        logger.warning(
-            "Failed to delete image from Cloudinary: %s", url, exc_info=True
-        )
+        logger.warning("Failed to delete image from Cloudinary: %s", url, exc_info=True)
 
 
 async def delete_image(url: str) -> None:

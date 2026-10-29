@@ -67,8 +67,12 @@ async def test_catalog_card_shows_first_photo_and_cart_data(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
     category = await add_category(db_session, "Сумки")
-    first_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/first.jpg"
-    second_url = "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/second.jpg"
+    first_url = (
+        "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/first.jpg"
+    )
+    second_url = (
+        "https://res.cloudinary.com/demo/image/upload/v1/bazarbuy/products/second.jpg"
+    )
     product = await add_product(
         db_session, category, "Сумка", images=(first_url, second_url)
     )

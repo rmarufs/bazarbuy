@@ -436,9 +436,7 @@ async def test_delete_ignores_cloudinary_errors(
     monkeypatch.setattr(
         image_service,
         "delete_image",
-        lambda u: image_service.asyncio.to_thread(
-            image_service._delete_image_sync, u
-        ),
+        lambda u: image_service.asyncio.to_thread(image_service._delete_image_sync, u),
     )
 
     response = await admin_client.post(

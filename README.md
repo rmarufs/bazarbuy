@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/rmarufs/bazarbuy/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/rmarufs/bazarbuy/actions/workflows/ci.yml)
 
-Каталог товаров с оформлением предзаказа через WhatsApp без онлайн-оплаты. Покупатель собирает корзину на сайте и отправляет готовое сообщение с заказом владельцу в WhatsApp. Интерфейс спроектирован с приоритетом мобильной версии (mobile-first), валюта — сомони (TJS).
+**Демо (задеплоено на Render): [bazarbuy.onrender.com](https://bazarbuy.onrender.com)**
+
+Каталог товаров с оформлением предзаказа через WhatsApp без онлайн-оплаты. Покупатель собирает корзину на сайте и отправляет готовое сообщение с заказом владельцу в WhatsApp. Интерфейс адаптивный: сайт и админ-панель работают и на телефоне, и на компьютере. Приоритет у мобильной версии (mobile-first), версия для ПК аккуратная и минимальная. Валюта — сомони (TJS).
 
 Подробная спецификация проекта: [`docs/SPEC.md`](docs/SPEC.md).
 
@@ -36,6 +38,7 @@
 - **Frontend:** Jinja2-шаблоны, чистый HTML/CSS/JS (без фронтенд-фреймворков)
 - **Обработка и хранение изображений:** Pillow, Cloudinary
 - **Тестирование:** pytest, pytest-asyncio, Playwright (e2e)
+- **Деплой:** Render
 
 ## Установка
 
@@ -89,7 +92,7 @@ docker compose up -d
 docker compose down
 ```
 
-## Запуск
+## Локальный запуск
 
 1. Примените миграции базы данных:
    ```bash
@@ -104,10 +107,13 @@ docker compose down
    uvicorn app.main:app --reload
    ```
 
-Основные адреса после запуска:
-- Публичный сайт: http://127.0.0.1:8000/
-- Вход в админ-панель: http://127.0.0.1:8000/admin/login
-- Проверка состояния сервиса: http://127.0.0.1:8000/health
+После запуска сервер доступен на вашем компьютере. Развёрнутая версия проекта на Render открывается по [публичной ссылке](https://bazarbuy.onrender.com).
+
+| Страница | Локально | Развёрнутая версия (Render) |
+| --- | --- | --- |
+| Публичный сайт | http://127.0.0.1:8000/ | https://bazarbuy.onrender.com/ |
+| Вход в админ-панель | http://127.0.0.1:8000/admin/login | https://bazarbuy.onrender.com/admin/login |
+| Проверка состояния сервиса | http://127.0.0.1:8000/health | https://bazarbuy.onrender.com/health |
 
 ## Тесты
 

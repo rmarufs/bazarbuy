@@ -285,6 +285,32 @@ async def test_public_pages_share_header_with_cart_placeholder(
     for url in ("/", "/about", "/contacts"):
         page = (await client.get(url)).text
         assert "Bazarbuy.tj" in page
+        assert "/static/logo-header.png" in page
         assert 'href="/about"' in page
         assert 'href="/contacts"' in page
         assert "data-cart-count" in page
+
+
+async def test_icons_and_pwa_manifest_routes(client: AsyncClient) -> None:
+    for path in (
+        "/favicon.ico",
+        "/favicon-16x16.png",
+        "/favicon-32x32.png",
+        "/apple-touch-icon.png",
+        "/icon-192.png",
+        "/icon-512.png",
+        "/icon-maskable-512.png",
+        "/static/logo-header.png",
+    ):
+        response = await client.get(path)
+        assert response.status_code == 200, path
+        assert len(response.content) > 0, path
+
+    manifest = await client.get("/manifest.webmanifest")
+    assert manifest.status_code == 200
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    data = manifest.json()
+    assert data["short_name"] == "BazarBuy"
+    assert data["display"] == "standalone"
+    assert data["theme_color"] == "#f9f6f1"
+    assert data["background_color"] == "#f9f6f1"

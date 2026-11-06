@@ -6,11 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Каталог{% endblock %} — Bazarbuy.tj</title>
   <meta name="description" content="Bazarbuy.tj — каталог товаров под предзаказ. Соберите корзину и отправьте заказ в WhatsApp.">
+  <meta name="theme-color" content="#f9f6f1">
+  <link rel="icon" href="/favicon.ico?v=1" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">Bazarbuy.tj</a>
+    <a class="brand" href="/">
+      <img class="brand-logo" src="/static/logo-header.png" width="32" height="36" alt="">
+      <span>Bazarbuy.tj</span>
+    </a>
     <a class="cart-link{% if active_nav == 'cart' %} active{% endif %}" href="/cart" aria-label="Корзина">
       {{ icon("cart", 24) }}
       <span class="cart-badge" data-cart-count hidden>0</span>

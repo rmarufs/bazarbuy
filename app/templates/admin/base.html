@@ -6,12 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
   <title>{% block title %}Админка{% endblock %} — Bazarbuy.tj</title>
+  <meta name="theme-color" content="#f9f6f1">
+  <link rel="icon" href="/favicon.ico?v=1" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png?v=1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   {% block nav %}
   <header class="site-header">
-    <a class="brand" href="/admin">Bazarbuy.tj</a>
+    <a class="brand" href="/admin">
+      <img class="brand-logo" src="/static/logo-header.png" width="32" height="36" alt="">
+      <span>Bazarbuy.tj</span>
+    </a>
     <form method="post" action="/admin/logout" class="logout-form">
       <button type="submit" class="btn btn-ghost btn-sm">
         {{ icon("logout", 18) }}<span>Выйти</span>

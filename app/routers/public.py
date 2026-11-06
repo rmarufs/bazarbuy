@@ -1,15 +1,59 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.templating import templates
+from app.core.templating import BASE_DIR, templates
 from app.schemas.product import CartItemOut
 from app.services import category_service, product_service, setting_service
 
 router = APIRouter()
+STATIC_DIR = BASE_DIR / "static"
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+async def favicon_ico() -> FileResponse:
+    return FileResponse(STATIC_DIR / "favicon.ico", media_type="image/x-icon")
+
+
+@router.get("/favicon-16x16.png", include_in_schema=False)
+async def favicon_16() -> FileResponse:
+    return FileResponse(STATIC_DIR / "favicon-16x16.png", media_type="image/png")
+
+
+@router.get("/favicon-32x32.png", include_in_schema=False)
+async def favicon_32() -> FileResponse:
+    return FileResponse(STATIC_DIR / "favicon-32x32.png", media_type="image/png")
+
+
+@router.get("/apple-touch-icon.png", include_in_schema=False)
+async def apple_touch_icon() -> FileResponse:
+    return FileResponse(STATIC_DIR / "apple-touch-icon.png", media_type="image/png")
+
+
+@router.get("/icon-192.png", include_in_schema=False)
+async def icon_192() -> FileResponse:
+    return FileResponse(STATIC_DIR / "icon-192.png", media_type="image/png")
+
+
+@router.get("/icon-512.png", include_in_schema=False)
+async def icon_512() -> FileResponse:
+    return FileResponse(STATIC_DIR / "icon-512.png", media_type="image/png")
+
+
+@router.get("/icon-maskable-512.png", include_in_schema=False)
+async def icon_maskable_512() -> FileResponse:
+    return FileResponse(STATIC_DIR / "icon-maskable-512.png", media_type="image/png")
+
+
+@router.get("/manifest.webmanifest", include_in_schema=False)
+async def web_manifest() -> FileResponse:
+    return FileResponse(
+        STATIC_DIR / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
 
 
 @router.get("/")

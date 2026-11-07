@@ -691,6 +691,10 @@ body.is-dragging { cursor: grabbing; user-select: none; -webkit-user-select: non
   .product-actions { grid-column: auto; }
 }
 
+@media (min-width: 768px) {
+  .site-header .brand span { line-height: 1; transform: translateY(-2px); }
+}
+
 @media (min-width: 960px) {
   .product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
